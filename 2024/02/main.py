@@ -50,9 +50,9 @@ def problem_dampener(report: list[int]) -> bool:
     failed_level = check_safety(report)
     if failed_level < 0: return True
 
-    #the only way to fix a failed level should be by either removing that level itself or any adjacents
-    for x in range(failed_level-1, failed_level+1):
-        failed_level = check_safety(report, x)
+    #the only way to fix a failed level should be by either removing that level itself or any adjacents... nvm, let's try brute force
+    for lvl in range(len(report)):
+        failed_level = check_safety(report, lvl)
         if failed_level < 0: return True
     return False
     
@@ -74,8 +74,8 @@ for report in reports["toproc"]:
         reports["safe"].append(report)
     else:
         reports["unsafe"].append(report)
-    
-print(len(reports["toproc"])) #1000
-print(len(reports["unsafe"])) # 476 -> 432
-print(len(reports["safe"]))   # 524 -> 568
+
+print(len(reports["toproc"])) #1000 ->Part2->2.try
+print(len(reports["unsafe"])) # 476 -> 432 -> 431
+print(len(reports["safe"]))   # 524 -> 568 -> 569 (so there is just 1 report for which my first attempt didn't work... let's find out which one!)
 # %%
