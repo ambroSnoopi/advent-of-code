@@ -55,7 +55,26 @@ def problem_dampener(report: list[int]) -> bool:
         failed_level = check_safety(report, lvl)
         if failed_level < 0: return True
     return False
-    
+
+def almost_problem_dampener(report: list[int]) -> bool:
+    """
+    My first attempt of the Problem Dampener.
+
+    Args:
+        report (list[int]): The levels in a report.
+
+    Return:
+        bool: True if Safe
+    """
+    failed_level = check_safety(report)
+    if failed_level < 0: return True
+
+    #the only way to fix a failed level should be by either removing that level itself or any adjacents...
+    for lvl in range(failed_level-1, failed_level+1):
+        failed_level = check_safety(report, lvl)
+        if failed_level < 0: return True
+    return False
+
 reports = {
     "toproc": [],
     "unsafe": [],
@@ -70,6 +89,12 @@ for report in reports["toproc"]:
     
     is_safe = problem_dampener(report)
 
+    if is_safe and not(almost_problem_dampener(report)): 
+        #the edge case that costed me an attempt...
+        print(report)
+        print('failed at: '+check_safety(report))
+        #...ah, i suppose we should have also tried to skip the 1. level, since that could never "fail"
+
     if is_safe:
         reports["safe"].append(report)
     else:
@@ -77,5 +102,5 @@ for report in reports["toproc"]:
 
 print(len(reports["toproc"])) #1000 ->Part2->2.try
 print(len(reports["unsafe"])) # 476 -> 432 -> 431
-print(len(reports["safe"]))   # 524 -> 568 -> 569 (so there is just 1 report for which my first attempt didn't work... let's find out which one!)
+print(len(reports["safe"]))   # 524 -> 568 -> 569
 # %%
