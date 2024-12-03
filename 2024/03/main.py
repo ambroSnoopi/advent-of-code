@@ -10,13 +10,8 @@ mul_pattern = r"mul\(\d{1,3},\d{1,3}\)"
 with open("input.txt", "r") as file:
     content = file.read()
 
-idx_first_dont = content.find("don't()")
-idx_last_do = content.rfind("do()")
-idx_last_dont = content.rfind("don't()")
-does = re.findall(do_pattern, content[idx_first_dont:])
-does.append(content[:idx_first_dont]) #there is none, so this doesn't actually matter
-if idx_last_do > idx_last_dont: #let's prettend we didn't know that is the case and didn't need a second attempt to catch this edge case
-    does.append(content[idx_last_do:])
+# let's save us the edge case handling and round up the edges instead...
+does = re.findall(do_pattern, "do()"+content+"don't()")
 
 matches = []
 for do in does:
@@ -32,6 +27,6 @@ for match in matches:
     results.append(x * y)
 total = sum(results)
 print(results) 
-print(total) #Part 1: 182'619'815  // Part 2: 61'054'530 (f) -> 63'518'894 (f)
+print(total) #Part 1: 182'619'815  // Part 2: 61'054'530 (f) -> 63'518'894 (f) -> 65'949'847 (f)
 
 # %%
