@@ -1,4 +1,5 @@
-from typing import List, Optional, Tuple, Iterator
+from typing import Iterator
+from collections import Counter
 from enum import Enum
 from dataclasses import dataclass
 import numpy as np
@@ -75,6 +76,49 @@ class Puzzle:
             next_c = self.cells[next_y][next_x]
             word += next_c.char
         return word
+    
+    def gather_cells(self, start: Cell, dir: Direction, lenght: int) -> str:
+        """Gathers all cells reading from a starting cell in a specific direction for a specified length."""
+        collection = []
+        for n in range(lenght):
+            next_x = start.x + dir.dx * n
+            next_y = start.y + dir.dy * n
+            if not (0 <= next_x < self.width and 0 <= next_y < self.height):
+                return collection
+            next_c = self.cells[next_y][next_x]
+            collection.append(next_c)
+        return collection
+    
+    def find_word(self, word="MAS") -> list[list[Cell]]:
+        findings = []
+        for cell in self.chars.get(word[0]):
+            for dir in list(Direction):
+                if word == self.gather_chars(cell, dir, len(word)):
+                    findings.append(self.gather_cells(cell, dir, len(word)))
+        return findings
+    
+    def count_x(self, word="MAS") -> int:
+        findings = self.find_word(word)
+        half_len = int((len(word)-1)/2)
+        x_cells: list[Cell] = []
+        for f in findings:
+            x_cells.append(f[half_len])
+        cnt = Counter(x_cells)  # Count how often each Cell is listed
+        double_cnt = {key: value for key, value in cnt.items() if value > 1}  # Filter for entries with more than 1 occurrence
+        return len(double_cnt)
+    
+ #   def count_x(self, word="MAS") -> int:
+ #       """Counts how many time a word appears overlapping itself in an X-shape."""
+ #       n = 0
+ #       half_len = int((len(word)-1)/2)
+ #       x_char = word[half_len]
+ #       for cell in self.chars.get(x_char):
+ #           ul = self.gather_chars(cell, Direction.UL, half_len+1)
+ #           lr = self.gather_chars(cell, Direction.LR, half_len+1)
+ #
+ #           ur = self.gather_chars(cell, Direction.UR, half_len+1)
+ #           ll ...
+ #       return n
 
 def load_puzzle(filename: str) -> Puzzle:
     with open(filename, 'r') as file:
