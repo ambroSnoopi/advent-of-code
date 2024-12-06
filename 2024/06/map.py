@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Iterator
 from dataclasses import dataclass
 
 class Direction(Enum):
@@ -44,6 +44,10 @@ class Cell:
     def clear(self):
         self.is_obstacle = False
         self.guard_direction = None
+        self.visited = False
+
+    def reset(self):
+        self.visited = False
     
     def mark_visited(self):
         self.visited = True
@@ -57,6 +61,10 @@ class Cell:
             return 'X'
         return '.'
 
+@dataclass(frozen=True)
+class Position:
+    cell: Cell
+    direction: Direction
 @dataclass
 class Guard:
     x: int
@@ -74,6 +82,12 @@ class Guard:
         """Turn the guard 90 degrees to the right"""
         self.direction = self.direction.turn_right()
 
+    def reset(self, pos: Position):
+        """Reset guard on a specific (starting) position."""
+        self.x = pos.cell.x
+        self.y = pos.cell.y
+        self.direction = pos.direction
+
 class Map:
     def __init__(self, input_str: str):
         # Split the input string into lines and create the grid
@@ -84,61 +98,65 @@ class Map:
         # Initialize the map with empty cells
         self.cells = [[Cell(x, y) for x in range(self.width)] for y in range(self.height)]
         
-        # Keep track of guards (the way a "single guard" was highlighted suggests ther might be more in part 2?)
-        self.guards: List[Guard] = []
-        
         # Parse the input and populate the grid
         for y, line in enumerate(lines):
             for x, char in enumerate(line):
                 if char == '#':
-                    self.cells[y][x].set_obstacle()
+                    self.get_cell(x, y).set_obstacle()
                 elif char in ('^', '>', 'v', '<'):
                     direction = next(d for d in Direction if d.symbol == char)
-                    self.cells[y][x].set_guard(direction)
-                    self.guards.append(Guard(x, y, direction))
+                    self.get_cell(x, y).set_guard(direction)
+                    self.guard = Guard(x, y, direction)
+                    self.starting_pos = Position(self.get_cell(x, y), Direction.UP)
     
     def get_cell(self, x: int, y: int) -> Optional[Cell]:
         if 0 <= x < self.width and 0 <= y < self.height:
             return self.cells[y][x]
         return None
     
-    def is_valid_position(self, x: int, y: int) -> bool:
+    def get_cells(self) -> Iterator[Cell]:
+        """Returns an iterator over all cells in the map, row by row."""
+        for row in self.cells:
+            yield from row
+
+    def reset(self):
+        """Resets the map to it's original state."""
+        for cell in self.get_cells():
+            cell.reset()
+        self.guard.reset(self.starting_pos)
+
+    def is_on_map(self, cell: Cell) -> bool:
         """Check if the position is within the map bounds"""
-        return 0 <= x < self.width and 0 <= y < self.height
+        return cell is not None and 0 <= cell.x < self.width and 0 <= cell.y < self.height
     
-    def simulate_guard_movement(self, guard_index: int = 0) -> List[Tuple[int, int]]:
+    def simulate_guard_movement(self) -> Tuple[List[Position], bool]:
         """
-        Simulate movement of a specific guard until they leave the map.
-        Returns the list of positions visited.
+        Simulate movement of the guard until they leave the map or loop.
+        Returns the list of traversed Positions and whether the guard exited the map.
         """
-        if not (0 <= guard_index < len(self.guards)):
-            return []
-        
-        guard = self.guards[guard_index]
-        path = [(guard.x, guard.y)]
-        
-        # Mark initial position as visited
-        self.cells[guard.y][guard.x].mark_visited()
-        
-        while True:
-            new_x, new_y = guard.move()
-            
-            # Check if guard has left the map
-            if not self.is_valid_position(new_x, new_y):
-                break
+        guard = self.guard
+        path = []
+        new_pos = self.starting_pos
+
+        while self.is_on_map(new_pos.cell) and new_pos not in path: #i.e. break on loops or when leaving the map
                 
             # Check if we hit an obstacle
-            cell = self.cells[new_y][new_x]
-            if cell.is_obstacle:
-                guard.turn_right()
-                continue
-                
-            # Move to new position
-            guard.x, guard.y = new_x, new_y
-            cell.mark_visited()
-            path.append((new_x, new_y))
+            if new_pos.cell.is_obstacle:
+                guard.turn_right()   
+                #cur_pos = Position(self.get_cell(guard.x, guard.y), guard.direction)
+                #if cur_pos in path: # edge case that would not have been dedected last turn, bc guard did not turn yet
+                #    break           # ...which i should not need any more bc i'm now checking the whole path and not only the starting pos
+            else:
+                # Move to new position
+                guard.x, guard.y = new_pos.cell.x, new_pos.cell.y
+                new_pos.cell.mark_visited()
+                path.append(new_pos)
+            
+            # Fetch next
+            new_x, new_y = guard.move()
+            new_pos = Position(self.get_cell(new_x, new_y), guard.direction)
         
-        return path
+        return (path, self.is_on_map(new_pos.cell))
     
     def __str__(self) -> str:
         return '\n'.join(''.join(str(cell) for cell in row) for row in self.cells)
