@@ -35,7 +35,6 @@ class Cell:
     
     def set_obstacle(self):
         self.is_obstacle = True
-        self.guard_direction = None
     
     def set_guard(self, direction: Direction):
         self.is_obstacle = False
@@ -43,7 +42,6 @@ class Cell:
     
     def clear(self):
         self.is_obstacle = False
-        self.guard_direction = None
 #        self.visited = False
 #
 #    def reset(self):
@@ -139,6 +137,8 @@ class Map:
 
         while True:
             pos = (guard.x, guard.y, guard.direction)
+
+            #if self.cells[guard.y][guard.x].is_obstacle: raise ValueError("Cannot stand on an obstacle!")
                 
             # Check for loops
             if pos in path:
