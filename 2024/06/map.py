@@ -31,7 +31,7 @@ class Cell:
         self.y = y
         self.is_obstacle = False
         self.guard_direction: Optional[Direction] = None
-        self.visited = False
+#        self.visited = False   #this was just for the looks... and we cant afford it!
     
     def set_obstacle(self):
         self.is_obstacle = True
@@ -44,21 +44,21 @@ class Cell:
     def clear(self):
         self.is_obstacle = False
         self.guard_direction = None
-        self.visited = False
-
-    def reset(self):
-        self.visited = False
-    
-    def mark_visited(self):
-        self.visited = True
+#        self.visited = False
+#
+#    def reset(self):
+#        self.visited = False
+#    
+#    def mark_visited(self):
+#        self.visited = True
     
     def __str__(self) -> str:
         if self.is_obstacle:
             return '#'
         elif self.guard_direction:
             return self.guard_direction.symbol
-        elif self.visited:
-            return 'X'
+ #       elif self.visited:
+ #           return 'X'
         return '.'
 
 @dataclass(frozen=True)
@@ -72,7 +72,7 @@ class Guard:
     direction: Direction
     
     def move(self) -> Tuple[int, int]:
-        """Returns the new position after moving in the current direction"""
+        """Returns the new (x, y) position after moving in the current direction"""
         return (
             self.x + self.direction.dx,
             self.y + self.direction.dy
@@ -121,42 +121,40 @@ class Map:
 
     def reset(self):
         """Resets the map to it's original state."""
-        for cell in self.get_cells():
-            cell.reset()
+        #for cell in self.get_cells():   # nothing to reset, as we don't alter the cells during simulation anymore
+        #    cell.reset()
         self.guard.reset(self.starting_pos)
 
-    def is_on_map(self, cell: Cell) -> bool:
-        """Check if the position is within the map bounds"""
-        return cell is not None and 0 <= cell.x < self.width and 0 <= cell.y < self.height
+#    def is_on_map(self, cell: Cell) -> bool:   # primitives ftw...
+#        """Check if the position is within the map bounds"""
+#        return cell is not None and 0 <= cell.x < self.width and 0 <= cell.y < self.height
     
-    def simulate_guard_movement(self) -> Tuple[List[Position], bool]:
+    def simulate_guard_movement(self) -> Tuple[set[Tuple[int, int, Direction]], bool]:
         """
         Simulate movement of the guard until they leave the map or loop.
         Returns the list of traversed Positions and whether the guard exited the map.
         """
         guard = self.guard
-        path: List[Position] = []
-        new_pos = self.starting_pos
+        path: set[Tuple[int, int, Direction]] = set() #apparently, creating objects is expensive, so let's try to work with primitives
 
-        while self.is_on_map(new_pos.cell) and new_pos not in path: #i.e. break on loops or when leaving the map
+        while True:
+            pos = (guard.x, guard.y, guard.direction)
                 
-            # Check if we hit an obstacle
-            if new_pos.cell.is_obstacle:
-                guard.turn_right()   
-                #cur_pos = Position(self.get_cell(guard.x, guard.y), guard.direction)
-                #if cur_pos in path: # edge case that would not have been dedected last turn, bc guard did not turn yet
-                #    break           # ...which i should not need any more bc i'm now checking the whole path and not only the starting pos
-            else:
-                # Move to new position
-                guard.x, guard.y = new_pos.cell.x, new_pos.cell.y
-                new_pos.cell.mark_visited()
-                path.append(new_pos)
+            # Check for loops
+            if pos in path:
+                return path, False
+
+            path.add(pos)
             
-            # Fetch next
-            new_x, new_y = guard.move()
-            new_pos = Position(self.get_cell(new_x, new_y), guard.direction)
-        
-        return (path, not self.is_on_map(new_pos.cell))
+            # Handle obstacles and movement
+            x, y = guard.move()       
+            try:
+                while self.cells[y][x].is_obstacle:
+                    guard.turn_right()
+                    x, y = guard.move()
+            except IndexError:
+                return path, True #we'd leave the map
+            guard.x, guard.y = x, y
     
     def __str__(self) -> str:
         return '\n'.join(''.join(str(cell) for cell in row) for row in self.cells)
