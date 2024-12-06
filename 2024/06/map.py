@@ -135,7 +135,7 @@ class Map:
         Returns the list of traversed Positions and whether the guard exited the map.
         """
         guard = self.guard
-        path = []
+        path: List[Position] = []
         new_pos = self.starting_pos
 
         while self.is_on_map(new_pos.cell) and new_pos not in path: #i.e. break on loops or when leaving the map
@@ -156,7 +156,7 @@ class Map:
             new_x, new_y = guard.move()
             new_pos = Position(self.get_cell(new_x, new_y), guard.direction)
         
-        return (path, self.is_on_map(new_pos.cell))
+        return (path, not self.is_on_map(new_pos.cell))
     
     def __str__(self) -> str:
         return '\n'.join(''.join(str(cell) for cell in row) for row in self.cells)
