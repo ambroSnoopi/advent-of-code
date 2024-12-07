@@ -5,7 +5,8 @@ from tqdm import tqdm
 class Operator(Enum):
     ADD = ('+')
     MULTIPLY = ('*')
-    #i wonder if part 2 could include other operators...?
+    CONCAT = ('||')
+    #i knew it! :D
     
     @property
     def symbol(self) -> str:
@@ -21,7 +22,7 @@ def load_equations(filename: str) -> dict[int, list[int]]:
             equations[total] = operands
     return equations
 
-def guess_operators(total: int, operands: list[int], operators=[Operator.ADD, Operator.MULTIPLY]) -> bool:
+def guess_operators(total: int, operands: list[int], operators: list[Operator] = list(Operator)) -> bool:
     """Tries to combine the given operands using a combination of the provided operators to reach the total. Returns True if successfull."""
 
     configurations = list(itertools.product(operators, repeat=len(operands)-1)) #generates all possible combinations of the provided operators
@@ -34,26 +35,33 @@ def guess_operators(total: int, operands: list[int], operators=[Operator.ADD, Op
             match operator:
                 case Operator.ADD: subtotal += operand
                 case Operator.MULTIPLY: subtotal *= operand
+                case Operator.CONCAT: subtotal = int(str(subtotal)+str(operand)) # down from subsecond to 1min 30s... we can do better, right?
 
         if subtotal == total:
             return True
         
     return False
 
-def validate_totals(equations: dict[int, list[int]]) -> list[int]:
+def validate_totals(equations: dict[int, list[int]], operators: list[Operator] = list(Operator)) -> list[int]:
     """ Validates each total of a dict of equations returning only valid totals (aka test values). """
     valid_testvalues = []
     for total, operands in tqdm(equations.items(), desc="Validationg test values of equations", unit="equation"):
-        if guess_operators(total, operands):
+        if guess_operators(total, operands, operators):
             valid_testvalues.append(total)
     return valid_testvalues
 
-
+# Part 1
 test = load_equations('input/test.txt')
 expected = 3749
-actual = sum(validate_totals(test))
+actual = sum(validate_totals(test, [Operator.ADD, Operator.MULTIPLY]))
 assert expected==actual, f"Test failed!\n  Expected: {expected}\n  Actual: {actual}"
+
+# Part 2
+expected = 11387
+actual = sum(validate_totals(test, [Operator.ADD, Operator.MULTIPLY, Operator.CONCAT]))
+assert expected==actual, f"Test failed!\n  Expected: {expected}\n  Actual: {actual}"
+
 
 quest = load_equations('input/quest.txt')
 total_calibration_result = sum(validate_totals(quest))
-print(total_calibration_result)
+print(total_calibration_result) # 7710205485870 / 20928985450275 in 1.5min
