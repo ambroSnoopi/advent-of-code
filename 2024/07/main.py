@@ -36,9 +36,13 @@ def guess_operators(total: int, operands: list[int], operators: list[Operator] =
             match operator:
                 case Operator.ADD: subtotal += operand
                 case Operator.MULTIPLY: subtotal *= operand
-                #case Operator.CONCAT: subtotal = int(str(subtotal)+str(operand)) # down from subsecond to 1min 30s... we can do better, right? let's do away with type casting
+                case Operator.CONCAT: subtotal = int(str(subtotal)+str(operand)) # down from subsecond to 1min 30s... we can do better, right? let's do away with type casting
                 #case Operator.CONCAT: subtotal = subtotal*10**(math.floor(math.log10(operand)) + 1) + operand #multiplying subtotal by 10 to the power of number of digits of operand to make space for it... still takes 1min 20s
-                case Operator.CONCAT: subtotal = subtotal*10**(len(str(operand))) + operand #maybe math is slow? still 1min 20s
+                #case Operator.CONCAT: subtotal = subtotal*10**(len(str(operand))) + operand #maybe math was slow? still 1min 20s
+                #case Operator.CONCAT: #uhm let's try increment only...
+                #    subtotal *=10**(len(str(operand))) 
+                #    subtotal += operand # 1min 25s
+                # conclusion: the perf impact was propbly just from adding an additional dimension of operators and not bc of its implemantion
 
         if subtotal == total:
             return True
