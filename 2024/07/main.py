@@ -1,6 +1,7 @@
 from enum import Enum
 import itertools
 from tqdm import tqdm
+import math
 
 class Operator(Enum):
     ADD = ('+')
@@ -35,7 +36,8 @@ def guess_operators(total: int, operands: list[int], operators: list[Operator] =
             match operator:
                 case Operator.ADD: subtotal += operand
                 case Operator.MULTIPLY: subtotal *= operand
-                case Operator.CONCAT: subtotal = int(str(subtotal)+str(operand)) # down from subsecond to 1min 30s... we can do better, right?
+                #case Operator.CONCAT: subtotal = int(str(subtotal)+str(operand)) # down from subsecond to 1min 30s... we can do better, right?
+                case Operator.CONCAT: subtotal = subtotal*10**(math.floor(math.log10(operand)) + 1) + operand #multiplying subtotal by 10 to the power of number of digits of operand to make space for it... still takes 1min 20s
 
         if subtotal == total:
             return True
@@ -64,4 +66,4 @@ assert expected==actual, f"Test failed!\n  Expected: {expected}\n  Actual: {actu
 
 quest = load_equations('input/quest.txt')
 total_calibration_result = sum(validate_totals(quest))
-print(total_calibration_result) # 7710205485870 / 20928985450275 in 1.5min
+print(total_calibration_result)
