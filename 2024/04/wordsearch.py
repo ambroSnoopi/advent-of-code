@@ -89,36 +89,43 @@ class Puzzle:
             collection.append(next_c)
         return collection
     
-    def find_word(self, word="MAS") -> list[list[Cell]]:
-        findings = []
-        for cell in self.chars.get(word[0]):
+#    def find_word(self, word="MAS") -> list[list[Cell]]:
+#        findings = []
+#        for cell in self.chars.get(word[0]):
+#            for dir in list(Direction):
+#                if word == self.gather_chars(cell, dir, len(word)):
+#                    findings.append(self.gather_cells(cell, dir, len(word)))
+#        return findings
+#    
+#    def count_x(self, word="MAS") -> int:
+#        findings = self.find_word(word)
+#        half_len = int((len(word)-1)/2)
+#        x_cells: list[Cell] = []
+#        for f in findings:
+#            x_cells.append(f[half_len])
+#        cnt = Counter(x_cells)  # Count how often each Cell is listed
+#        double_cnt = {key: value for key, value in cnt.items() if value > 1}  # Filter for entries with more than 1 occurrence
+#        return len(double_cnt)
+
+# they have actually to be in 90degree to eachother...    
+    def count_x_mas(self) -> int:
+        """Counts how many time MAS appears overlapping itself in an X-shape."""
+        n = 0
+        word = "MAS" # cant be bothered to make it dynamic...
+        x_char = "A"
+        for cell in self.chars.get(x_char):
+            star: dict[Direction, str] = {} # let collect a char in each direction
             for dir in list(Direction):
-                if word == self.gather_chars(cell, dir, len(word)):
-                    findings.append(self.gather_cells(cell, dir, len(word)))
-        return findings
-    
-    def count_x(self, word="MAS") -> int:
-        findings = self.find_word(word)
-        half_len = int((len(word)-1)/2)
-        x_cells: list[Cell] = []
-        for f in findings:
-            x_cells.append(f[half_len])
-        cnt = Counter(x_cells)  # Count how often each Cell is listed
-        double_cnt = {key: value for key, value in cnt.items() if value > 1}  # Filter for entries with more than 1 occurrence
-        return len(double_cnt)
-    
- #   def count_x(self, word="MAS") -> int:
- #       """Counts how many time a word appears overlapping itself in an X-shape."""
- #       n = 0
- #       half_len = int((len(word)-1)/2)
- #       x_char = word[half_len]
- #       for cell in self.chars.get(x_char):
- #           ul = self.gather_chars(cell, Direction.UL, half_len+1)
- #           lr = self.gather_chars(cell, Direction.LR, half_len+1)
- #
- #           ur = self.gather_chars(cell, Direction.UR, half_len+1)
- #           ll ...
- #       return n
+                star[dir] = self.gather_chars(cell, dir, 2)[1:]
+            #if (
+            #    (star[Direction.LEFT]+x_char+star[Direction.RIGHT] == word or star[Direction.RIGHT]+x_char+star[Direction.LEFT] == word) and 
+            #    (star[Direction.UP]+x_char+star[Direction.DOWN] == word or star[Direction.DOWN]+x_char+star[Direction.UP] == word)
+            #): n += 1
+            if (
+                (star[Direction.UL]+x_char+star[Direction.LR] == word or star[Direction.LR]+x_char+star[Direction.UL] == word) and 
+                (star[Direction.UR]+x_char+star[Direction.LL] == word or star[Direction.LL]+x_char+star[Direction.UR] == word)
+            ): n += 1
+        return n
 
 def load_puzzle(filename: str) -> Puzzle:
     with open(filename, 'r') as file:

@@ -11,11 +11,11 @@ print(quest.count_word()) #2591
 
 test_p2 = ws.load_puzzle('input/test-p2.txt')
 expected = 9
-actual = test_p2.count_x()
+actual = test_p2.count_x_mas()
 assert expected==actual, f"Test failed!\n  Expected: {expected}\n  Actual: {actual}"
 
 expected = 9
-actual = test.count_x()
+actual = test.count_x_mas()
 assert expected==actual, f"Test failed!\n  Expected: {expected}\n  Actual: {actual}"
 
-print(quest.count_x()) # <2505!
+print(quest.count_x_mas()) # 1880 / <1907! (not + only X) / <2505! (not * only X)
