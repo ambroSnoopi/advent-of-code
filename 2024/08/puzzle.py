@@ -49,7 +49,18 @@ class Grid:
         for row in self.cells:
             yield from row
     
-    def create_antinodes(self):
+    def find_cells_by_steps(self, start_y, start_x, dy, dx) -> list[Cell]:
+        """ Find all cells starting at a specified coordinate using a regular distance pattern (incl. starting point). """
+        cells = []
+        y, x = start_y, start_x
+        # Iterate until we go out of bounds
+        while 0 <= y < self.height and 0 <= x < self.width:
+            cells.append(self.cells[y][x])
+            y += dy
+            x += dx
+        return cells
+    
+    def create_antinodes(self, resonance= False):
         for cells in self.antennas.values():
             pairs = list(itertools.combinations(cells, 2))
             for pair in pairs:
@@ -58,13 +69,19 @@ class Grid:
                 ax, ay, bx, by = a.x, a.y, b.x, b.y
                 dy = ay - by
                 dx = ax - bx
-                # mirror antinode
-                n1y = ay + dy
-                n1x = ax + dx
-                n2y = by - dy
-                n2x = bx - dx
-                self.register_antinode(n1y, n1x)
-                self.register_antinode(n2y, n2x)
+                if resonance:
+                    for c in self.find_cells_by_steps(ay, ax, dy, dx):
+                        self.register_antinode(c.y, c.x)
+                    for c in self.find_cells_by_steps(ay, ax, -dy, -dx):
+                        self.register_antinode(c.y, c.x)
+                else:
+                    # mirror antinode
+                    n1y = ay + dy
+                    n1x = ax + dx
+                    n2y = by - dy
+                    n2x = bx - dx
+                    self.register_antinode(n1y, n1x)
+                    self.register_antinode(n2y, n2x)
     
     def register_antinode(self, y: int, x: int):
         """ Register an antinode at the specified coordinates if they're valid. """
