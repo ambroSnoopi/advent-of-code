@@ -21,6 +21,7 @@ class Trail:
     start: Cell
     routes: list[set[Cell]]
     score: int
+    ratin: int
 
     def __hash__(self):
         return hash(self.head)
@@ -39,6 +40,7 @@ class Map:
         self.cells = np.full((self.height, self.width), "", dtype=Cell)
         self.trails: list[Trail] = []
         self.score = 0
+        self.rating = 0
 
         # Parse the input and populate the grid
         for y, line in enumerate(lines):
@@ -52,17 +54,19 @@ class Map:
         for row in self.cells:
             yield from row
 
-    def find_trails(self) -> int:
-        """Finds all Trails on the Map and update the Map's score accordingly. Returns the total score."""
+    def discover_trails(self):
+        """Finds all Trails on the Map and update the Map's score & rating accordingly."""
         for cell in self.get_cells():
             if cell.h == 0:
                 routes = self.find_routes(cell)
                 score = self.score_routes(routes)
-                trail = Trail(cell, routes, score)
+                rating = self.rate_routes(routes, score)
+                trail = Trail(cell, routes, score, rating)
                 if score > 0:
                     self.trails.append(trail)
                     self.score += score
-        return self.score
+                    self.rating += rating
+        return
 
     def find_routes(self, start: Cell) -> list[set[Cell]]:
         """Finds all Routes for a trailhead Cell."""
@@ -104,11 +108,18 @@ class Map:
         return neighbors
     
     def score_routes(self, routes: list[set[Cell]]) -> int:
-        "Score Trail based on how many heads can be reached."
+        "Score a Trail based on how many heads can be reached."
         score = len(routes[9]) if len(routes) > 9 else 0
         return score
             
-
+    def rate_routes(self, routes: list[set[Cell]], score: int) -> int:
+        "Rate a Trail based on how many distinct paths can be used to reach any head."
+        rating = 0       
+        #if len(routes) > 9:
+        if score > 0:
+            width = max(len(step) for step in routes)
+            rating = score * width
+        return rating
 
 
 
