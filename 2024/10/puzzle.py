@@ -1,6 +1,8 @@
 from typing import Iterator
 from dataclasses import dataclass
 import numpy as np
+from tqdm import tqdm
+from itertools import product
 
 @dataclass
 class Cell:
@@ -21,7 +23,6 @@ class Trail:
     start: Cell
     routes: list[set[Cell]]
     score: int
-    ratin: int
 
     def __hash__(self):
         return hash(self.head)
@@ -56,32 +57,32 @@ class Map:
 
     def discover_trails(self):
         """Finds all Trails on the Map and update the Map's score & rating accordingly."""
-        for cell in self.get_cells():
+        for cell in tqdm(self.get_cells(), desc="Discovering Trails", unit="cell"):
             if cell.h == 0:
                 routes = self.find_routes(cell)
                 score = self.score_routes(routes)
-                rating = self.rate_routes(routes, score)
-                trail = Trail(cell, routes, score, rating)
+                trail = Trail(cell, routes, score)
                 if score > 0:
                     self.trails.append(trail)
                     self.score += score
+                    rating = self.rate_trail(trail)
                     self.rating += rating
         return
 
-    def find_routes(self, start: Cell) -> list[set[Cell]]:
-        """Finds all Routes for a trailhead Cell."""
+    def find_routes(self, start: Cell, slope=1) -> list[set[Cell]]:
+        """Finds all Routes for a Cell with an even gradual slope."""
         routes: list[set[Cell]] = [{start}]
-        neighbors: set[Cell] = self.find_elevated_neighbor(start)
+        neighbors: set[Cell] = self.find_elevated_neighbor(start, slope)
         while neighbors:
             routes.append(neighbors)
             neighbors = {neighbor for n in neighbors for neighbor in self.find_elevated_neighbor(n)}
         return routes
     
-    def find_elevated_neighbor(self, cell: Cell) -> set[Cell]:
-        """Find all neigbors that are elevated by 1."""
+    def find_elevated_neighbor(self, cell: Cell, delta_h=1) -> set[Cell]:
+        """Find all neigbors that are elevated by a specific height."""
         x = cell.x
         y = cell.y
-        seek_h = cell.h+1
+        seek_h = cell.h + delta_h
 
         neighbors: set[Cell] = set()
 
@@ -107,20 +108,32 @@ class Map:
         
         return neighbors
     
+    def is_neighbor(self, this: Cell, other: Cell) -> bool:
+        dx = abs(this.x - other.x)
+        dy = abs(this.y - other.y)
+        return dx+dy <= 1
+            
+    def is_valid_path(self, path: tuple[Cell, ...]) -> bool:
+        for next_lvl, level in zip(path[1:] , path):
+            if not self.is_neighbor(level, next_lvl):
+                return False
+        return True
+    
     def score_routes(self, routes: list[set[Cell]]) -> int:
         "Score a Trail based on how many heads can be reached."
         score = len(routes[9]) if len(routes) > 9 else 0
         return score
-            
-    def rate_routes(self, routes: list[set[Cell]], score: int) -> int:
+    
+    def rate_trail(self, trail: Trail) -> int:
         "Rate a Trail based on how many distinct paths can be used to reach any head."
-        rating = 0       
-        #if len(routes) > 9:
-        if score > 0:
-            width = max(len(step) for step in routes)
-            rating = score * width
+        rating = 0
+        routes = trail.routes
+        if len(routes) > 9:
+            paths = set(product(*routes))
+            for path in paths:
+                if self.is_valid_path(path):
+                    rating += 1
         return rating
-
 
 
 def load_puzzle(filename: str):
