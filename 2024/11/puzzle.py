@@ -1,32 +1,27 @@
+from tqdm import tqdm
 
 class PlutonianPebbles:
 
     def __init__(self, data: str):
-        self.stones: list[int] = []
-        for digit in data.split(' '):
-            engraving = int(digit)
-            self.stones.append(engraving)
+        self.stones = [int(digit) for digit in data.split()]
 
     def blink(self, repeat=1):
-        for _ in range(repeat):
-            idx = 0
-            for _ in self.stones:
-                if idx == len(self.stones):
-                    break
-                engraving = self.stones[idx]
+        for _ in tqdm(range(repeat), desc="Blinking...", unit="blinks"):
+            new_stones = [] # eliminating idx mgmnt by using a new list
+            for engraving in self.stones:
+                engraving_str = str(engraving)
+                str_len = len(engraving_str)
                 if engraving == 0:
-                    self.stones[idx] = 1
-                elif len(str(engraving)) % 2 == 0:
-                    engraving_str = str(engraving)
-                    half_len = int(len(engraving_str)/2)
-                    engr1 = int(engraving_str[:half_len])
-                    engr2 = int(engraving_str[half_len:])
-                    self.stones[idx] = engr1
-                    idx += 1
-                    self.stones.insert(idx, engr2)
+                    new_stones.append(1)
+                elif str_len % 2 == 0:
+                    half_len = str_len // 2  # integer division is faster
+                    new_stones.extend([ # appending both parts at once
+                        int(engraving_str[:half_len]),
+                        int(engraving_str[half_len:])
+                    ])
                 else:
-                    self.stones[idx] = engraving*2024
-                idx += 1
+                    new_stones.append(engraving * 2024)
+            self.stones = new_stones
 
 
 def load_puzzle(filename: str):

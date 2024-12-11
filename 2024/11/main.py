@@ -14,5 +14,8 @@ assert expected==actual, f"Test2 failed!\n  Expected: {expected}\n  Actual: {act
 """
 quest = puzzle.load_puzzle('input/quest.txt')
 quest.blink(25)
-actual = len(quest.stones)
-print(f"Quest Checksum: {actual}")
+post25 = len(quest.stones)
+print(f"No of Stones after 25 blinks: {post25}")
+quest.blink(50)
+post75 = len(quest.stones)
+print(f"No of Stones after 75 blinks: {post75}")
