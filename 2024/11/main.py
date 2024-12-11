@@ -1,9 +1,9 @@
 import puzzle
 
 test = puzzle.load_puzzle('input/test.txt')
-test.do()
-expected = 0123
-actual = test.checksum()
+test.blink(25)
+expected = 55312
+actual = len(test.stones)
 assert expected==actual, f"Test failed!\n  Expected: {expected}\n  Actual: {actual}"
 """
 test2 = puzzle.load_puzzle('input/test.txt')
@@ -13,6 +13,6 @@ actual = test2.checksum()
 assert expected==actual, f"Test2 failed!\n  Expected: {expected}\n  Actual: {actual}"
 """
 quest = puzzle.load_puzzle('input/quest.txt')
-quest.do()
-actual = quest.checksum()
+quest.blink(25)
+actual = len(quest.stones)
 print(f"Quest Checksum: {actual}")
