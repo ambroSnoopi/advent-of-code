@@ -15,4 +15,4 @@ assert expected==actual, f"Test2 failed!\n  Expected: {expected}\n  Actual: {act
 quest = puzzle.load_puzzle('input/quest.txt')
 quest.do()
 actual = quest.checksum()
-print(f"Quest Checksum: {actual}")
+print("Quest Checksum:", actual)
