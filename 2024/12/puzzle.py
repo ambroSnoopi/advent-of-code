@@ -37,9 +37,14 @@ class Region:
                 new_region.add_plot(c)
         return new_region
     
+    def merge(self, other: "Region"):
+        for c in other.plots.values():
+            if c not in self.plots.values():
+                self.add_plot(c)
+    
     def add_plot(self, cell: Cell):
         """Adds the Cell to the Plots of this Region.""" #, if it contains the same Plant
-        #if cell.plant == self.plant:
+        #if cell.plant == self.plant and cell not in self.plots.values():
         self.plots[(cell.x, cell.y)] = cell
         self.area += 1
         n = self.count_n(cell)
@@ -56,6 +61,9 @@ class Region:
     
     def price(self) -> int:
         return self.area * self.perimeter
+    
+    def __repr__(self):
+        return f"{self.plant}: {self.price()}"
 
 class Map:
     def __init__(self, input_str: str):
@@ -74,11 +82,11 @@ class Map:
                 regions = self.regions.pop(plant, [Region(c)])
                 n_regions = [r for r in regions if r.count_prev_neighbors(c) > 0]
                 if len(n_regions)>1:
-                    merged_region = Region.from_regions(n_regions)
-                    merged_region.add_plot(c)
-                    regions.append(merged_region)
+                    merged_region = Region(c)
                     for r in n_regions:
+                        merged_region.merge(r)
                         regions.remove(r)
+                    regions.append(merged_region)
                 elif len(n_regions)==1:
                     n_regions[0].add_plot(c)
                 else:
