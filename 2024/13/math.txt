@@ -1,0 +1,24 @@
+Xp = Xa * Na + Xb * Nb
+Yp = Xa * Na + Yb * Nb
+C  = Ca * Na + Cb * Nb = 3 * Na + Nb
+0 = Xp - (Xa * Na + Xb * Nb) + Yp - (Xa * Na + Yb * Nb)
+
+8400 = 94 * 80 + 22 * 40
+5400 = 34 * 80 + 67 * 40
+ 280 =  3 * 80 +  1 * 40
+
+8400 = 94 * Na + 22 * Nb
+5400 = 34 * Na + 67 * Nb
+   C =  3 * Na +  1 * Nb
+
+8400 = 94 * Na + 22 * Nb
+8400 - 22Nb = 94Na
+(8400 - 22Nb)/94 = Na
+Na = (Xp - Xb * Nb) / Xa
+
+
+5400 = 34 * ((8400 - 22Nb)/94) + 67 * Nb
+
+D = (XaYb) - (XbYa)
+Na = (Xp*Yb - Xb*Yp) / (Xa*Yb - Xb*Ya)
+Nb = (Xa*Yp - Xp*Ya) / (Xa*Yb - Xb*Ya)
