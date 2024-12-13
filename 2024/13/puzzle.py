@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import List
 import re
 from tqdm import tqdm
 from math import gcd
@@ -25,65 +24,16 @@ class Arcade:
 
         for m in tqdm(self.machines, desc="Simulating optimal plays", unit="machine"):
             optimum = self.derive_optimal_play(m)
-            if optimum is not None:
-                optimum = self.recallibrate_optimal_play(m, optimum)
             self.optimals.append(optimum)
         
     def checksum(self) -> int:
         """ Sum the cost for winning the prize of each machine with an optimal play. """
-        return sum(item[2] for item in self.optimals if item is not None)
+        return sum(item[2] for item in self.optimals if item is not None)  
     
-    def recallibrate_optimal_play(self, m: Machine, optimal: tuple[int, int, int], offset=10000000000000):
-        """
-        Calculate new Na, Nb, and C values when adding an identical offset to both Xp and Yp,
-        using the base solution as a starting point.
-        
-        Args:
-            m: Machine with original coefficients
-            optimal: Original optimal solution as a Tuple with base_Na, base_Nb, base_C
-            offset: Value to add to both Xp and Yp
-        
-        Returns:
-            tuple[int, int, int]: New (Na, Nb, C) values
-        """
-        #Xp = m.prize_x 
-        #Yp = m.prize_y
-        Xa = m.button_a.x_offset
-        Ya = m.button_a.y_offset
-        Xb = m.button_b.x_offset
-        Yb = m.button_b.y_offset
-        Ca = m.button_a.cost
-        Cb = m.button_b.cost
-        base_Na = optimal[0]
-        base_Nb = optimal[1]
-        #base_C = optimal[2]
-
-        # Find the minimal ratio that satisfies both equations
-        # (Xa-Ya)*N'a + (Xb-Yb)*N'b = 0
-        diff_X = abs(Xa - Ya)
-        diff_Y = abs(Yb - Xb)
-        
-        # Reduce the ratio to smallest integers
-        g = gcd(diff_X, diff_Y)
-        Na_step = diff_Y // g
-        Nb_step = diff_X // g
-        
-        # Calculate how many steps we need
-        # Xa*Na_step + Xb*Nb_step = step_total
-        step_total = Xa*Na_step + Xb*Nb_step
-        num_steps = offset // step_total
-        
-        # Calculate new values
-        new_Na = base_Na + (Na_step * num_steps)
-        new_Nb = base_Nb + (Nb_step * num_steps)
-        new_C = Ca * new_Na + Cb * new_Nb
-        
-        return new_Na, new_Nb, new_C
-    
-    def derive_optimal_play(self, m: Machine, bound=100)-> tuple[int, int, int] | None:
+    def derive_optimal_play(self, m: Machine) -> tuple[int, int, int] | None:
         """
         Find optimal integer Na, Nb that minimize C = Ca*Na + Cb*Nb
-        subject to coordinate constraints and upper bound.
+        subject to coordinate constraints, without upper bound.
         """
         Xp = m.prize_x 
         Yp = m.prize_y
@@ -93,24 +43,43 @@ class Arcade:
         Yb = m.button_b.y_offset
         Ca = m.button_a.cost
         Cb = m.button_b.cost
-
-        max_cost = Ca * bound + Cb * bound + 1
-        min_cost = max_cost
-        best_solution = None
-
-        # Try all integer combinations within bounds
-        for Na in range(bound + 1):
-            for Nb in range(bound + 1):
-                # Check if this combination satisfies both equations
-                if (Xa * Na + Xb * Nb == Xp) and (Ya * Na + Yb * Nb == Yp):
-                    cost = Ca * Na + Cb * Nb
-                    # Update best solution if this cost is lower
-                    if cost < min_cost:
-                        min_cost = cost
-                        best_solution = (Na, Nb, cost)
-        return best_solution
-
-
+        
+        # First check if the system has any integer solutions
+        # For the first equation: Xa*Na + Xb*Nb = Xp
+        if gcd(Xa, Xb) != 0 and Xp % gcd(Xa, Xb) != 0:
+            return None
+        
+        # For the second equation: Ya*Na + Yb*Nb = Yp
+        if gcd(Ya, Yb) != 0 and Yp % gcd(Ya, Yb) != 0:
+            return None
+        
+        # Find determinant of coefficient matrix
+        det = Xa * Yb - Xb * Ya
+        
+        # If determinant is zero, equations are dependent or inconsistent
+        if det == 0:
+            return None
+        
+        # Find one particular solution using Cramer's rule with fractions
+        Na = (Xp * Yb - Xb * Yp) // det
+        Nb = (Xa * Yp - Xp * Ya) // det
+        
+        # If the particular solution isn't integer, no integer solution exists
+        if (Xp * Yb - Xb * Yp) % det != 0 or (Xa * Yp - Xp * Ya) % det != 0:
+            return None
+        
+        # Verify the solution
+        if (Xa * Na + Xb * Nb != Xp) or (Ya * Na + Yb * Nb != Yp):
+            return None
+        
+        # Check if solution is non-negative
+        if Na < 0 or Nb < 0:
+            return None
+        
+        # Calculate cost
+        C = Ca * Na + Cb * Nb
+        
+        return Na, Nb, C
 
     def parse_machine_configs(self, machine_configs: str) -> list[Machine]:
         """
@@ -147,8 +116,8 @@ class Arcade:
                 match = re.match(r'Prize: X=(\d+), Y=(\d+)', line)
                 if match:
                     x, y = match.groups()
-                    current_config['prize_x'] = int(x)
-                    current_config['prize_y'] = int(y)
+                    current_config['prize_x'] = int(x)+10000000000000
+                    current_config['prize_y'] = int(y)+10000000000000
                     
                     # Create a new Machine instance when we have all the data
                     if len(current_config) == 4:
@@ -165,3 +134,33 @@ class Arcade:
 def load_puzzle(filename: str):
     with open(filename, 'r') as file:
         return Arcade(file.read())
+    
+def extended_gcd(a: int, b: int) -> tuple[int, int, int]:
+    """
+    Returns (gcd, x, y) where gcd is the greatest common divisor of a and b
+    and x, y are coefficients where ax + by = gcd
+    """
+    if a == 0:
+        return b, 0, 1
+    gcd, x1, y1 = extended_gcd(b % a, a)
+    x = y1 - (b // a) * x1
+    y = x1
+    return gcd, x, y
+
+def solve_diophantine(a: int, b: int, c: int) -> tuple[int, int] | None:
+    """
+    Solves the Diophantine equation: ax + by = c
+    Returns one solution (x0, y0) if exists, None otherwise
+    """
+    # Find GCD and coefficients
+    g, x0, y0 = extended_gcd(abs(a), abs(b))
+    
+    # Check if solution exists
+    if c % g != 0:
+        return None
+    
+    # Adjust for sign and scale to match c
+    x0 *= (c // g) * (1 if a > 0 else -1)
+    y0 *= (c // g) * (1 if b > 0 else -1)
+    
+    return x0, y0
