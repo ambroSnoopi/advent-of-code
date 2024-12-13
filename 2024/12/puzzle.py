@@ -22,7 +22,7 @@ class Region:
         self.plant = cell.plant
         self.plots: dict[Tuple[int,int], Cell] = {(cell.x, cell.y): cell}
         self.area = 1
-        self.perimeter = 4 #TODO: What's the best way of deriving this / storing data for this?
+        self.perimeter = 4
 
     @classmethod
     def from_regions(cls, regions: list["Region"]) -> "Region":
