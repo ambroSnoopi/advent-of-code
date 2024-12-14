@@ -1,4 +1,3 @@
-from typing import Iterator
 from collections import Counter
 from functools import reduce
 from operator import mul
