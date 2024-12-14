@@ -36,8 +36,8 @@ class Map:
         """
         # Treshold Parameters
         min_width_increase_ratio = 0.6
-        max_asymmetry = 0.3
-        min_density = 0.4
+        max_asymmetry = 1
+        min_density = 0.047
 
         # Find the bounds of robot cluster
         robot_rows, robot_cols = np.where(self.cells == 1)
