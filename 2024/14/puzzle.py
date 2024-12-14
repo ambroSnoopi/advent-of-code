@@ -2,7 +2,7 @@ from typing import Iterator
 from collections import Counter
 from functools import reduce
 from operator import mul
-
+import numpy as np
 
 class Robot:
     def __init__(self, x: int, y: int, vx: int, vy:int):
@@ -16,16 +16,22 @@ class Map:
         self.robots = robots
         self.height = height
         self.width = width
-        #self.cells = np.full((height, width), "", dtype=Cell)
+        self.cells = np.full((self.height, self.width), 0, dtype=int)
 
         self.mid_x = (self.width-1) // 2
         self.mid_y = (self.height-1) // 2  
         self.quadrants = Counter({'NW': 0, 'NO': 0, 'SW': 0, 'SO': 0})
 
+    def __str__(self) -> str:
+        # Convert entire array to string array, replace zeros with dots
+        str_grid = np.where(self.cells == 0, ' ', self.cells.astype(str))
+        # Join each row into a single string, then join rows with newlines
+        return '\n'.join(''.join(row) for row in str_grid)
+    
     def checksum(self):
         return reduce(mul, self.quadrants.values(), 1)
 
-    def __update_quadrant(self, robot):
+    def __update_quadrant(self, robot: Robot):
         """ Determines quadrant based on robots position and increments counter. """
         if robot.px == self.mid_x or robot.py == self.mid_y:
             return
@@ -41,9 +47,11 @@ class Map:
     def tick(self, n=100):
         """ Simulate n seconds."""
         self.quadrants.clear()
+        self.cells.fill(0)
         for robot in self.robots:
             robot.px, robot.py = self.move(robot, n)
             self.__update_quadrant(robot)
+            self.cells[robot.py][robot.px] += 1
 
     def move(self, robot: Robot, n=1) -> tuple[int, int]:
         """

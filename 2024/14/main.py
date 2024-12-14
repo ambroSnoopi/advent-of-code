@@ -16,3 +16,13 @@ quest = puzzle.load_puzzle('input/quest.txt', 101, 103)
 quest.tick()
 actual = quest.checksum()
 print("Quest Checksum:", actual)
+
+part2 = puzzle.load_puzzle('input/quest.txt', 101, 103)
+n = 1
+while True:
+    part2.tick(1)
+    print("\n\n")
+    print(f"Grid after {n} seconds:")
+    print(part2)
+
+    n += 1
