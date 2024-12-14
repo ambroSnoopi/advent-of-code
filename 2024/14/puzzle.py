@@ -21,12 +21,62 @@ class Map:
         self.mid_x = (self.width-1) // 2
         self.mid_y = (self.height-1) // 2  
         self.quadrants = Counter({'NW': 0, 'NO': 0, 'SW': 0, 'SO': 0})
+        self.tick(0)
 
     def __str__(self) -> str:
         # Convert entire array to string array, replace zeros with dots
         str_grid = np.where(self.cells == 0, ' ', self.cells.astype(str))
         # Join each row into a single string, then join rows with newlines
         return '\n'.join(''.join(row) for row in str_grid)
+    
+    def may_look_like_a_christmas_tree(self) -> bool:
+        """ 
+        Returns true if the string representation of the Map looks anything like a Christmas Tree
+        based on symmetry, density, width distribution and width to height ration.
+        """
+        # Treshold Parameters
+        min_width_increase_ratio = 0.6
+        max_asymmetry = 0.3
+        min_density = 0.4
+
+        # Find the bounds of robot cluster
+        robot_rows, robot_cols = np.where(self.cells == 1)
+            
+        min_row, max_row = np.min(robot_rows), np.max(robot_rows)
+        min_col, max_col = np.min(robot_cols), np.max(robot_cols)
+        
+        # Check if cluster is taller than wide
+        height = max_row - min_row + 1
+        width = max_col - min_col + 1
+        if height < width:
+            return False
+        
+        # Get the cluster's width at different heights (let's assume it wont just be an outline but a filled out tree)
+        widths = []
+        for row in range(min_row, max_row + 1):
+            width = np.sum(self.cells[row, min_col:max_col+1])
+            widths.append(width)
+        # Width should generally increase as we go down
+        width_increases = sum(w1 <= w2 for w1, w2 in zip(widths[:-1], widths[1:]))
+        if width_increases < len(widths) * min_width_increase_ratio: # At least x% should increase
+            return False
+
+        # Check for rough symmetry around vertical center
+        center_col = (min_col + max_col) // 2
+        for row in range(min_row, max_row + 1):
+            left_sum = np.sum(self.cells[row, :center_col])
+            right_sum = np.sum(self.cells[row, center_col+1:])
+            if abs(left_sum - right_sum) > max(left_sum, right_sum) * max_asymmetry:  # Allow x% asymmetry
+                return False
+
+        # Check density (again, let's assume it wont just be an outline...)
+        tree_area = height * (max_col - min_col + 1)
+        robot_count = len(robot_rows)
+        density = robot_count / tree_area
+        if density < min_density:  # At least x% filled
+            return False
+
+        return True
     
     def checksum(self):
         return reduce(mul, self.quadrants.values(), 1)
