@@ -119,26 +119,67 @@ class Map:
         #if piece.ptype == Ptype.BOX:
          #   twin_success = self.can_move(piece.other_half, dir)
         return True
+
+    def build_move(self, piece: Cell, dir: Direction, moving: list[Cell] = []) -> list[Cell]:
+        """Builds a move chain for the piece on the given cell in a given direction. Returns all cells in the chain that would be moved."""
+        if piece.ptype in [Ptype.WALL, Ptype.EMPTY]:
+            return [] #cannot move, thus return empty list
+        
+        target: Cell = self.cells[piece.y + dir.dy][piece.x + dir.dx]
+        if target.ptype == Ptype.WALL:
+            return [] #hitting a wall breaks the chain, thus return empty list
+        
+        if target == piece.other_half: # edge case (moving onto own other half)
+            moving.append(piece) # incl. self
+            return self.build_move(piece.other_half, dir, moving) # and return move chain of other half
+        
+        moving_target, moving_other = [], []
+        if target.ptype == Ptype.BOX:
+            moving_target.extend(self.build_move(target, dir)) #get chain of target...
+            moving_other.extend(self.build_move(target.other_half, dir)) #...and it's other_half
+            if not (moving_target and moving_other):
+                return [] #both need to be able to move or the entire chain is broken
+        
+        #if target.ptype == Ptype.EMPTY or BOX moved succefully
+        moving_twin = []
+        antitarget: Cell = self.cells[piece.y - dir.dy][piece.x - dir.dx]
+        if piece.ptype == Ptype.BOX and piece != antitarget.other_half: #break out of circular ref if i'm moving away (i.e. being pushed) from my own other_half
+            moving_twin.extend(self.build_move(piece.other_half, dir)) #get move chain for own other_half
+            if not (moving_twin):
+                return [] #break the chain if my other half cant move
+            
+        # build the chain in proper order of execution
+        moving.append(piece)
+        move_order = []
+        for cell in moving_twin:
+            if cell not in move_order: move_order.append(cell)
+        for cell in moving:
+            if cell not in move_order: move_order.append(cell)
+        for cell in moving_target:
+            if cell not in move_order: move_order.append(cell)
+        for cell in moving_other:
+            if cell not in move_order: move_order.append(cell)
+
+        if dir in {Direction.UP, Direction.DOWN}:
+            return sorted(move_order, key=lambda cell: cell.y, reverse=(dir==Direction.DOWN))
+        else:
+            return sorted(move_order, key=lambda cell: cell.x, reverse=(dir==Direction.RIGHT))
     
     def move_piece(self, piece: Cell, dir: Direction):
         """Moves piece on the given cell in a given direction and cascades to other movable objects on the path."""
-        if (
-            piece.ptype==Ptype.ROBOT and self.can_move(piece, dir) or 
-            piece.ptype==Ptype.BOX and self.can_move(piece, dir) and self.can_move(piece.other_half, dir)
-        ):
-            if piece.ptype in [Ptype.ROBOT, Ptype.BOX]:
-                target: Cell = self.cells[piece.y + dir.dy][piece.x + dir.dx]
-                if target.ptype == Ptype.BOX:
-                    if target.other_half != piece: self.move_piece(target.other_half, dir)
-                    self.move_piece(target, dir)
-                target.ptype = piece.ptype
-                if target.ptype == Ptype.BOX:
-                    target.other_half = piece.other_half
-                    target.other_half.other_half = target # updating ref to self... that's what i get for using Cell instead of Piece objects...
-                    piece.other_half = None
-                piece.ptype = Ptype.EMPTY
-                if target.ptype == Ptype.ROBOT: self.robot = target
-                
+        execution_order = self.build_move(piece, dir)
+        for piece in execution_order:
+            target: Cell = self.cells[piece.y + dir.dy][piece.x + dir.dx]
+            if target.ptype != Ptype.EMPTY or target.other_half:
+                raise ValueError('Tried to move onto a non empty cell!', piece, target)
+            target.ptype = piece.ptype
+            if target.ptype == Ptype.BOX:
+                target.other_half = piece.other_half
+                target.other_half.other_half = target # updating ref to self... that's what i get for using Cell instead of Piece objects...
+                piece.other_half = None
+            piece.ptype = Ptype.EMPTY
+            if target.ptype == Ptype.ROBOT: 
+                self.robot = target          
     
     def parse_moves_config(self, moves_data: str) -> list[Direction]:
         moves: list[Direction] = []   
