@@ -6,6 +6,9 @@ import puzzle
 #actual = test.checksum()
 #assert expected==actual, f"Test failed!\n  Expected: {expected}\n  Actual: {actual}"
 
+test3 = puzzle.load_puzzle('input/test3_map.txt', 'input/test3_moves.txt')
+test3.do()
+
 test2 = puzzle.load_puzzle('input/test2_map.txt', 'input/test2_moves.txt')
 test2.do()
 expected = 9021

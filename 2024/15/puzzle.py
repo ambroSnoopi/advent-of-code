@@ -1,4 +1,4 @@
-from typing import Iterator
+from typing import Iterator, Optional
 from enum import Enum
 from dataclasses import dataclass
 import numpy as np
@@ -42,6 +42,7 @@ class Cell:
     x: int
     y: int
     ptype: Ptype #transient
+    other_half: Optional["Cell"]
 
     def __hash__(self):
         return hash((self.x, self.y))
@@ -59,16 +60,25 @@ class Map:
         self.moves = self.parse_moves_config(moves_data)
         lines = map_data.strip().split('\n')
         self.height = len(lines)
-        self.width = len(lines[0]) if self.height > 0 else 0
+        self.width = len(lines[0])*2 if self.height > 0 else 0
         self.cells = np.empty((self.height, self.width), dtype=Cell)
         # Parse the input and populate the grid 
         for y, line in enumerate(lines):
             for x, char in enumerate(line):
-                c = Cell(x, y, Ptype(char))
-                self.cells[y][x] = c
-                if c.ptype==Ptype.ROBOT:
-                    self.robot = c
-                    self.robot_x_addon = 0.0
+                x = x*2
+                ptype = Ptype(char)
+                if ptype==Ptype.ROBOT:
+                    c_half = Cell(x, y, ptype, None)
+                    c_other = Cell(x+1, y, Ptype.EMPTY, None)
+                    self.robot = c_half
+                else:
+                    c_half = Cell(x, y, ptype, None)
+                    c_other = Cell(x+1, y, ptype, None)
+                if ptype == Ptype.BOX:
+                    c_half.other_half = c_other
+                    c_other.other_half = c_half
+                self.cells[y][x] = c_half
+                self.cells[y][x+1] = c_other
 
     def __str__(self) -> str:
         str_grid = self.cells.astype(str)
@@ -76,43 +86,59 @@ class Map:
         return '\n'.join(''.join(row) for row in str_grid)
 
     def get_cells(self) -> Iterator[Cell]:
-        """Returns an iterator over all cells in the map, row by row."""
+        """Returns an iterator over all cells in the map, row by row, left to right."""
         for row in self.cells:
             yield from row
 
     def checksum(self) -> int:
         score = 0
+        ignore: list[Cell] = []
         for cell in self.get_cells():
-            if cell.ptype==Ptype.BOX:
-                gps = 100 * cell.y + 2 * cell.x
+            if cell.ptype==Ptype.BOX and cell not in ignore:
+                gps = 100 * cell.y + cell.x
                 score += gps
+                ignore.append(cell.other_half)
         return score
     
     def do(self):
         for dir in self.moves:
             self.move_piece(self.robot, dir)
 
-    def move_piece(self, piece: Cell, dir: Direction) -> bool:
-        """Attempts to move the piece on the given cell in a given direction and handles obstacles recursively. Returns True if successfull."""
-        if piece.ptype == Ptype.ROBOT and dir.dx!=0:
-            #handle half-steps:
-            self.robot_x_addon += dir.dx/2
-            if self.robot_x_addon % 1 == 0.5:
-                return True
+    def can_move(self, piece: Cell, dir: Direction) -> bool:
+        """Checks if the piece on the given cell could move in a given direction and handles obstacles recursively. Returns True if successfull."""
         if piece.ptype in [Ptype.WALL, Ptype.EMPTY]:
             return False
         target: Cell = self.cells[piece.y + dir.dy][piece.x + dir.dx]
+        if target == piece.other_half:
+            return self.can_move(target, dir)
         if target.ptype == Ptype.WALL:
             return False
         if target.ptype == Ptype.BOX:
-            if not self.move_piece(target, dir):
-                return False
+            return self.can_move(target, dir) and self.can_move(target.other_half, dir)
         #if target.ptype == Ptype.EMPTY or BOX moved succefully
-        target.ptype = piece.ptype
-        piece.ptype = Ptype.EMPTY
-        if target.ptype == Ptype.ROBOT:
-            self.robot = target
+        #if piece.ptype == Ptype.BOX:
+         #   twin_success = self.can_move(piece.other_half, dir)
         return True
+    
+    def move_piece(self, piece: Cell, dir: Direction):
+        """Moves piece on the given cell in a given direction and cascades to other movable objects on the path."""
+        if (
+            piece.ptype==Ptype.ROBOT and self.can_move(piece, dir) or 
+            piece.ptype==Ptype.BOX and self.can_move(piece, dir) and self.can_move(piece.other_half, dir)
+        ):
+            if piece.ptype in [Ptype.ROBOT, Ptype.BOX]:
+                target: Cell = self.cells[piece.y + dir.dy][piece.x + dir.dx]
+                if target.ptype == Ptype.BOX:
+                    if target.other_half != piece: self.move_piece(target.other_half, dir)
+                    self.move_piece(target, dir)
+                target.ptype = piece.ptype
+                if target.ptype == Ptype.BOX:
+                    target.other_half = piece.other_half
+                    target.other_half.other_half = target # updating ref to self... that's what i get for using Cell instead of Piece objects...
+                    piece.other_half = None
+                piece.ptype = Ptype.EMPTY
+                if target.ptype == Ptype.ROBOT: self.robot = target
+                
     
     def parse_moves_config(self, moves_data: str) -> list[Direction]:
         moves: list[Direction] = []   
