@@ -167,7 +167,7 @@ class Map:
     
     def move_piece(self, piece: Cell, dir: Direction):
         """Moves piece on the given cell in a given direction and cascades to other movable objects on the path."""
-        execution_order = self.build_move(piece, dir)
+        execution_order = self.build_move(piece, dir, [])
         for piece in execution_order:
             target: Cell = self.cells[piece.y + dir.dy][piece.x + dir.dx]
             if target.ptype != Ptype.EMPTY or target.other_half:
