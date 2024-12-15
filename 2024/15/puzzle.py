@@ -135,21 +135,25 @@ class Map:
         
         moving_target, moving_other = [], []
         if target.ptype == Ptype.BOX:
-            moving_target.extend(self.build_move(target, dir)) #get chain of target...
-            moving_other.extend(self.build_move(target.other_half, dir)) #...and it's other_half
+            moving_target.extend(self.build_move(target, dir, [])) #get chain of target...
+            moving_other.extend(self.build_move(target.other_half, dir, [])) #...and it's other_half
             if not (moving_target and moving_other):
                 return [] #both need to be able to move or the entire chain is broken
         
         #if target.ptype == Ptype.EMPTY or BOX moved succefully
+
         moving_twin = []
+        moving.append(piece)
         antitarget: Cell = self.cells[piece.y - dir.dy][piece.x - dir.dx]
-        if piece.ptype == Ptype.BOX and piece != antitarget.other_half: #break out of circular ref if i'm moving away (i.e. being pushed) from my own other_half
-            moving_twin.extend(self.build_move(piece.other_half, dir)) #get move chain for own other_half
+        if (piece.ptype == Ptype.BOX and 
+            piece != antitarget.other_half and  # break out of circular ref if i'm moving away (i.e. being pushed) from my own other_half
+            piece.other_half not in moving # break out of circular ref if my other half is already in the moving list
+        ):
+            moving_twin.extend(self.build_move(piece.other_half, dir, moving)) #get move chain for own other_half
             if not (moving_twin):
                 return [] #break the chain if my other half cant move
             
         # build the chain in proper order of execution
-        moving.append(piece)
         move_order = []
         for cell in moving_twin:
             if cell not in move_order: move_order.append(cell)
