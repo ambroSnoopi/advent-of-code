@@ -2,6 +2,7 @@ from typing import Iterator, Optional
 from enum import Enum
 from dataclasses import dataclass
 import numpy as np
+from tqdm import tqdm
 
 class Direction(Enum):
     UP = ('^', 0, -1)
@@ -101,7 +102,7 @@ class Map:
         return score
     
     def do(self):
-        for dir in self.moves:
+        for dir in tqdm(self.moves, desc="Simulationg moves...", unit="move"):
             self.move_piece(self.robot, dir)
 
     def can_move(self, piece: Cell, dir: Direction) -> bool:
