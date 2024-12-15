@@ -68,6 +68,7 @@ class Map:
                 self.cells[y][x] = c
                 if c.ptype==Ptype.ROBOT:
                     self.robot = c
+                    self.robot_x_addon = 0.0
 
     def __str__(self) -> str:
         str_grid = self.cells.astype(str)
@@ -83,7 +84,7 @@ class Map:
         score = 0
         for cell in self.get_cells():
             if cell.ptype==Ptype.BOX:
-                gps = 100 * cell.y + cell.x
+                gps = 100 * cell.y + 2 * cell.x
                 score += gps
         return score
     
@@ -93,6 +94,11 @@ class Map:
 
     def move_piece(self, piece: Cell, dir: Direction) -> bool:
         """Attempts to move the piece on the given cell in a given direction and handles obstacles recursively. Returns True if successfull."""
+        if piece.ptype == Ptype.ROBOT and dir.dx!=0:
+            #handle half-steps:
+            self.robot_x_addon += dir.dx/2
+            if self.robot_x_addon % 1 == 0.5:
+                return True
         if piece.ptype in [Ptype.WALL, Ptype.EMPTY]:
             return False
         target: Cell = self.cells[piece.y + dir.dy][piece.x + dir.dx]
