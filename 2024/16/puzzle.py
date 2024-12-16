@@ -42,6 +42,11 @@ class Direction(Enum):
         current_index = directions.index(self)
         return directions[(current_index - 1) % 4]
 
+    def turn_around(self) -> 'Direction':
+        directions = list(Direction)
+        current_index = directions.index(self)
+        return directions[(current_index + 2) % 4]
+
 class Ptype(Enum):
     WALL  = '#'
     EMPTY = '.'
@@ -72,33 +77,40 @@ class Player:
         self.pos = pos
         self.dir = dir
         self.moves: dict[Cell, dict] = {pos: {'dir': dir, 'score': 0}} #value = dict of dir and score
+        self.revisited: dict[Cell, set[Direction]] = {}
     
     def add_move(self, target: Cell, dir: Direction, highscore = float('inf')) -> int:
         """ Scores and registers a move. Handles revison. Returns the score. """
         # edge case: if we are revisiting the same cell, let's cut back in time and assume we have turned the other way instead
         if target in self.moves:
-            new_moves = {} #excluding target
+            rev = self.revisited.get(target, set())
+            if len(rev) == 4:
+                raise RecursionError("All possible paths from this Cell have already been tryied!", target)
+            rev.add(self.moves[target]['dir']) #flag old move as revisited
+            new_moves = {} #incl. target
             for key in self.moves:
+                new_moves[key] = self.moves[key]
                 if key == target:
                     break
-                new_moves[key] = self.moves[key]
-            if new_moves:
-                self.moves = new_moves
-            else: #catching going through start again
-                self.moves = {target: {'dir': Direction.RIGHT, 'score': 0}}
-                self.pos = target
-                self.dir = dir
-                return 0
+            self.moves = new_moves
+            self.pos = target
+            while dir in rev:
+                dir = dir.turn_right()
+            self.dir = dir
+            rev.add(dir)
+            self.revisited[target] = rev
+            last_move = next(reversed(self.moves.values()))
+            return last_move['score']
         # happy case: derive new score and register move
         last_move = next(reversed(self.moves.values()))
-        cost = 1 if dir==last_move['dir'] else 1000
+        cost = 1 if dir==last_move['dir'] else 1001
         score = last_move['score'] + cost
         if score <= highscore: #move
             self.moves[target] = {'dir': dir, 'score': score}
             self.pos = target
             self.dir = dir
         else: # just turn if moving would result in a worse score
-            self.dir = dir.turn_left() 
+            self.dir = dir.turn_right()
         return score
 
 class Map:
@@ -132,14 +144,14 @@ class Map:
         return next(reversed(self.player.moves.values())).get('score')
 
     def move(self):
-        # simple move pattern: always try to move right
-        dir = self.player.dir.turn_right()
+        # simple move pattern: always try to move straight, otherwise turn clockwise
+        dir = self.player.dir#.turn_right()
         pos = self.player.pos
         target: Cell = self.cells[pos.y + dir.dy][pos.x + dir.dx] 
 
         if target.ptype == Ptype.WALL:
-            self.player.dir = self.player.dir.turn_left() # therefore, the next try will be moving forward, then left, then back
-        if target.ptype in [Ptype.EMPTY, Ptype.GOAL] :
+            self.player.dir = self.player.dir.turn_right() # therefore, the next try will be moving forward, then left, then back
+        else: # if target.ptype in [Ptype.EMPTY, Ptype.GOAL]:
             highscore = self.highscores.get((target, dir), float('inf'))
             score = self.player.add_move(target, dir, highscore)
             if score < highscore:
@@ -148,10 +160,12 @@ class Map:
 
     def __str__(self) -> str:
         str_grid = self.cells.astype(str)
+        # overwrite with player path
         for cell, move in self.player.moves.items():
             str_grid[cell.y][cell.x] = str(move['dir'])
+        last_score = str(next(reversed(self.player.moves.values())).get('score','unknown'))
         # Join each row into a single string, then join rows with newlines
-        return '\n'.join(''.join(row) for row in str_grid)
+        return '\n'.join(''.join(row) for row in str_grid)+'\nScore: '+last_score
 
     def get_cells(self) -> Iterator[Cell]:
         """Returns an iterator over all cells in the map, row by row, left to right."""
