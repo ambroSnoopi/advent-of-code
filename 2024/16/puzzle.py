@@ -1,6 +1,7 @@
 from typing import Iterator, Optional
+from collections import Counter
 from enum import Enum
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import numpy as np
 from tqdm import tqdm
 
@@ -60,6 +61,7 @@ class Cell:
     x: int
     y: int
     ptype: Ptype #transient
+    visits: Counter = field(default_factory=Counter)
 
     def __hash__(self):
         return hash((self.x, self.y))
@@ -77,16 +79,12 @@ class Player:
         self.pos = pos
         self.dir = dir
         self.moves: dict[Cell, dict] = {pos: {'dir': dir, 'score': 0}} #value = dict of dir and score
-        self.revisited: dict[Cell, set[Direction]] = {}
+        self.pos.visits[dir] += 1
     
     def add_move(self, target: Cell, dir: Direction, highscore = float('inf')) -> int:
         """ Scores and registers a move. Handles revison. Returns the score. """
-        # edge case: if we are revisiting the same cell, let's cut back in time and assume we have turned the other way instead
+        # edge case: if we are revisiting the same cell, let's cut back in time and assume we have walked the other way instead
         if target in self.moves:
-            rev = self.revisited.get(target, set())
-            if len(rev) == 4:
-                raise RecursionError("All possible paths from this Cell have already been tryied!", target)
-            rev.add(self.moves[target]['dir']) #flag old move as revisited
             new_moves = {} #incl. target
             for key in self.moves:
                 new_moves[key] = self.moves[key]
@@ -94,11 +92,8 @@ class Player:
                     break
             self.moves = new_moves
             self.pos = target
-            while dir in rev:
-                dir = dir.turn_right()
+            self.pos.visits[dir] += 1
             self.dir = dir
-            rev.add(dir)
-            self.revisited[target] = rev
             last_move = next(reversed(self.moves.values()))
             return last_move['score']
         # happy case: derive new score and register move
@@ -108,9 +103,10 @@ class Player:
         if score <= highscore: #move
             self.moves[target] = {'dir': dir, 'score': score}
             self.pos = target
+            self.pos.visits[dir] += 1
             self.dir = dir
-        else: # just turn if moving would result in a worse score
-            self.dir = dir.turn_right()
+        else: # make it so much more expensive for the next ranking
+            target.visits[dir] += 1 # 1000?
         return score
 
 class Map:
@@ -143,20 +139,36 @@ class Map:
     def checksum(self):
         return next(reversed(self.player.moves.values())).get('score')
 
+    def get_ranked_dirs(self, pos: Cell) -> list[Direction]:
+        """ Returns a list of walkable directions sorted by number of visits of the target cell. """
+        walkable_targets = []
+        for dir in list(Direction):
+            target: Cell = self.cells[pos.y + dir.dy][pos.x + dir.dx]
+            if target.ptype != Ptype.WALL:
+                walkable_targets.append((target.visits[dir], dir)) 
+        ranked_targets = sorted(walkable_targets, key=lambda item: (item[0], item[1].symbol)) # i.e. sorted by visits
+        return [dir for visits, dir in ranked_targets]
+    
     def move(self):
-        # simple move pattern: always try to move straight, otherwise turn clockwise
-        dir = self.player.dir#.turn_right()
+        """ Orders the cheapest possible move, i.e. move to the least visited neighbor but prefer moving straight. """
         pos = self.player.pos
-        target: Cell = self.cells[pos.y + dir.dy][pos.x + dir.dx] 
 
-        if target.ptype == Ptype.WALL:
-            self.player.dir = self.player.dir.turn_right() # therefore, the next try will be moving forward, then left, then back
-        else: # if target.ptype in [Ptype.EMPTY, Ptype.GOAL]:
-            highscore = self.highscores.get((target, dir), float('inf'))
-            score = self.player.add_move(target, dir, highscore)
-            if score < highscore:
-                self.highscores[(target, dir)] = score
-        
+        ranked_dir = self.get_ranked_dirs(pos)
+        straight_target: Cell = self.cells[pos.y + self.player.dir.dy][pos.x + self.player.dir.dx]
+        nextbest_target: Cell = self.cells[pos.y + ranked_dir[0].dy][pos.x + ranked_dir[0].dx]
+        if (self.player.dir in ranked_dir # i.e. is walkable
+            and straight_target.visits[self.player.dir] <= nextbest_target.visits[ranked_dir[0]] #+1000 or smth like that? bc it's 1000 more expensive to turn
+            ):
+            target = straight_target
+            dir = self.player.dir
+        else:
+            target = nextbest_target
+            dir = ranked_dir[0]
+
+        highscore = self.highscores.get((target, dir), float('inf'))
+        score = self.player.add_move(target, dir, highscore)
+        if score < highscore:
+            self.highscores[(target, dir)] = score     
 
     def __str__(self) -> str:
         str_grid = self.cells.astype(str)
