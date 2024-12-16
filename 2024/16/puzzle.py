@@ -118,7 +118,7 @@ class Map:
         self.start: Cell
         self.player: Player
         self.highscores: dict[tuple[Cell, Direction], int] = {}
-        self.runs: list[int] = [] # final scores
+        self.runs: list[dict[Cell, dict]] = [] # list[player.moves]
         # Parse the input and populate the grid 
         for y, line in enumerate(lines):
             for x, char in enumerate(line):
@@ -130,14 +130,22 @@ class Map:
                     c = Cell(x, y, ptype)
                 self.cells[y][x] = c
 
-    def do(self):
-        self.player = Player(self.start, Direction.RIGHT)
-        while self.player.pos.ptype != Ptype.GOAL:
-            final_score = self.move()
-        self.runs.append(final_score)
+    def do(self, n=1, best_score=0):
+        for _ in tqdm(range(n), desc="Simulating runs...", unit="run"):
+            self.player = Player(self.start, Direction.RIGHT)
+            while self.player.pos.ptype != Ptype.GOAL:
+                final_score = self.move()
+            if final_score == best_score or best_score==0:
+                self.runs.append(self.player.moves)
 
-    def checksum(self):
-        return next(reversed(self.player.moves.values())).get('score')
+    def checksum(self) -> int:
+        return next(reversed(self.player.moves.values())).get('score', 0)
+    
+    def get_best_path_cells(self) -> set[Cell]:
+        best_path_cells = set()
+        for moves in self.runs:
+            best_path_cells.update(moves.keys())
+        return best_path_cells
 
     def get_ranked_dirs(self, pos: Cell) -> list[Direction]:
         """ Returns a list of walkable directions sorted by number of visits of the target cell. """
@@ -168,7 +176,8 @@ class Map:
         highscore = self.highscores.get((target, dir), float('inf'))
         score = self.player.add_move(target, dir, highscore)
         if score < highscore:
-            self.highscores[(target, dir)] = score     
+            self.highscores[(target, dir)] = score
+        return score
 
     def __str__(self) -> str:
         str_grid = self.cells.astype(str)
