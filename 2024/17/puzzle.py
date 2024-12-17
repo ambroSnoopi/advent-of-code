@@ -1,3 +1,4 @@
+from multiprocessing import Pool, cpu_count
 from enum import Enum
 from tqdm import tqdm
 
@@ -58,8 +59,8 @@ class ChronospatialPC:
             self.regA = in_regA
             self.do_copy_program()
             pbar.update(1)
-        return in_regA      
-    
+        return in_regA
+
     def execute(self, instruction: Instruction, operand: int):
         if instruction == Instruction.adv: self.adv(self.combo(operand))
         elif instruction == Instruction.bxl: self.bxl(operand)
@@ -109,3 +110,57 @@ class ChronospatialPC:
     def cdv(self, operand: int):
         self.regC = self.regA // 2 ** operand
         self.n += 2
+
+def search_range_for_regA(args: tuple[int, int, list[int]]) -> int | None:
+    """
+    Search a specific range of regA values that produce a copy of the proogram.
+    Args:
+        args: Tuple of (start, end, program)
+    Returns:
+        The working regA value if found, None otherwise
+    """
+    start, end, program = args
+    pc = ChronospatialPC(program, 0)
+    
+    for regA in range(start, end):
+        pc.regA = regA
+        pc.output.clear()
+        pc.do_copy_program()
+        if pc.output == pc.program:
+            return regA
+    return None
+
+def parallel_search_for_regA(program: list[int], start: int = 0, chunk_size: int = 5_000_000) -> int | None:
+    """
+    Search for regA values that produce a copy of the proogram in parallel using multiple processes.
+    Args:
+        program: The program to reproduce
+        start: Starting value for regA
+        chunk_size: Size of chunks to distribute to processes
+    Returns:
+        The working regA value if found, None otherwise
+    """
+    num_processes = cpu_count()
+    
+    # Create ranges for each process
+    current = start
+    with Pool(num_processes) as pool:
+        pbar = tqdm(desc=f"Searching with {num_processes} processes", unit="chunks")
+        
+        while True:
+            # Create chunks for each process
+            ranges = [
+                (current + i * chunk_size, current + (i + 1) * chunk_size, program)
+                for i in range(num_processes)
+            ]
+            
+            # Process chunks in parallel
+            for result in pool.imap_unordered(search_range_for_regA, ranges):
+                if result is not None:
+                    # Solution found
+                    pool.terminate()  # Stop all other processes
+                    return result
+            
+            # Update progress and move to next range
+            current += chunk_size * num_processes
+            pbar.update(num_processes)
