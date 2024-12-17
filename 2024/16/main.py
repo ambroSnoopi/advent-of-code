@@ -27,7 +27,6 @@ quest.do()
 best_score = quest.checksum()
 print("Quest Best Score:", best_score)
 
-quest = puzzle.load_puzzle('input/quest.txt')
-quest.do(100, best_score)
+quest.do(9, best_score)
 actual = len(quest.get_best_path_cells())
 print("Quest Cells in Best Path:", actual)
