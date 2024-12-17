@@ -1,6 +1,4 @@
-from typing import Iterator, Optional
 from enum import Enum
-from dataclasses import dataclass
 from tqdm import tqdm
 
 class Instruction(Enum):
@@ -43,6 +41,25 @@ class ChronospatialPC:
             operand = self.program[self.n+1]
             self.execute(inst, operand)
 
+    def do_copy_program(self):
+        """ Same as do() but terminates early if the program is not producing a copy of itself. """
+        self.n = 0
+        while self.program[:len(self.output)] == self.output and self.n < len(self.program):
+            inst = Instruction.from_opcode(self.program[self.n])
+            operand = self.program[self.n+1]
+            self.execute(inst, operand)
+    
+    def fixRegA(self, start=0) -> int:
+        in_regA = start
+        pbar = tqdm(desc=f"Searching Value for Registry A starting at {start}... Tested", unit="values", )
+        while self.output != self.program:
+            in_regA += 1
+            self.output.clear()
+            self.regA = in_regA
+            self.do_copy_program()
+            pbar.update(1)
+        return in_regA      
+    
     def execute(self, instruction: Instruction, operand: int):
         if instruction == Instruction.adv: self.adv(self.combo(operand))
         elif instruction == Instruction.bxl: self.bxl(operand)
