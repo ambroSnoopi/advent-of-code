@@ -118,8 +118,9 @@ class Map:
             for y in range(map_size)
         ], dtype=object)
         self.corrupted = byte_list[:falling_bytes]
-        self.start = self.cells[0][0]
-        self.cells[map_size-1][map_size-1].ptype = Ptype.GOAL
+        self.start: Cell = self.cells[0][0]
+        self.goal: Cell = self.cells[map_size-1][map_size-1]
+        self.goal.ptype = Ptype.GOAL
         self.player = Player(self.start, Direction.DOWN)
         self.highscores: dict[tuple[Cell, Direction], int] = {}
         self.runs: list[dict[Cell, dict]] = [] # list[player.moves]
@@ -127,10 +128,14 @@ class Map:
             self.cells[y][x].ptype = Ptype.WALL
 
     def do(self, n=1, best_score=0):
-        for _ in tqdm(range(n), desc="Simulating runs...", unit="run"):
+        #for _ in tqdm(range(n), desc="Simulating runs...", unit="run"):
             self.player = Player(self.start, Direction.RIGHT)
+            pbar = tqdm(desc=f"Trying to reach the goal... Distance", unit="cells")
             while self.player.pos.ptype != Ptype.GOAL:
                 final_score = self.move()
+                pbar.n = self.calc_distance(self.goal, self.player.pos)
+                pbar.update(0)
+            pbar.close()
             if final_score == best_score or best_score==0:
                 self.runs.append(self.player.moves)
 
@@ -143,17 +148,21 @@ class Map:
             best_path_cells.update(moves.keys())
         return best_path_cells
 
+    def calc_distance(self, pos: Cell, other: Cell) -> int:
+        """ Absolute distance between 2 cells. """
+        return abs(pos.y - other.y) + abs(pos.x - other.x)
+    
     def get_ranked_dirs(self, pos: Cell) -> list[Direction]:
-        """ Returns a list of walkable directions sorted by number of visits of the target cell. """
+        """ Returns a list of walkable directions sorted by number of visits of the target cell and their distance to the goal. """
         walkable_targets = []
         for dir in list(Direction):
             next_y, next_x = pos.y + dir.dy, pos.x + dir.dx
             if not self.is_on_map(next_x, next_y): continue
             target: Cell = self.cells[next_y][next_x]
             if target.ptype != Ptype.WALL:
-                walkable_targets.append((target.visits[dir], dir)) 
-        ranked_targets = sorted(walkable_targets, key=lambda item: (item[0], item[1].symbol)) # i.e. sorted by visits
-        return [dir for visits, dir in ranked_targets]
+                walkable_targets.append((target.visits[dir], dir, self.calc_distance(self.goal, target))) 
+        ranked_targets = sorted(walkable_targets, key=lambda item: (item[0], item[2])) # i.e. sorted by visits then distance
+        return [dir for visits, dir, distance in ranked_targets]
     
     def is_on_map(self, x, y) -> bool:
         """Check if the position is within the map bounds"""
@@ -164,17 +173,8 @@ class Map:
         pos = self.player.pos
 
         ranked_dir = self.get_ranked_dirs(pos)
-        straight_y, straight_x = pos.y + self.player.dir.dy, pos.x + self.player.dir.dx
-        straight_target: Cell | None = self.cells[straight_y][straight_x] if self.is_on_map(straight_y, straight_x) else None
-        nextbest_target: Cell = self.cells[pos.y + ranked_dir[0].dy][pos.x + ranked_dir[0].dx]
-        if (self.player.dir in ranked_dir # i.e. is walkable
-            and straight_target.visits[self.player.dir] <= nextbest_target.visits[ranked_dir[0]] #+1000 or smth like that? bc it's 1000 more expensive to turn
-            ):
-            target = straight_target
-            dir = self.player.dir
-        else:
-            target = nextbest_target
-            dir = ranked_dir[0]
+        dir = ranked_dir[0]
+        target: Cell = self.cells[pos.y + dir.dy][pos.x + dir.dx]        
 
         highscore = self.highscores.get((target, dir), float('inf'))
         score = self.player.add_move(target, dir, highscore)
