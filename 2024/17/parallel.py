@@ -6,7 +6,7 @@ def main():
     program = [2,4,1,5,7,5,1,6,0,3,4,1,5,5,3,0]
     #program = [0,3,5,4,3,0]
     print(f"Starting parallel search using {cpu_count()} CPU cores...")
-    result = puzzle.parallel_search_for_regA(program, 580_000_000, 1_000_000)
+    result = puzzle.parallel_search_for_regA(program, 580_000_000, 1_000_000)#+536
     #result = puzzle.parallel_search_for_regA(program, 0, 25_000)
     if result is not None:
         print(f"\nFound solution: regA = {result}")
