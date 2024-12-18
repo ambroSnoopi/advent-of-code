@@ -4,6 +4,7 @@ from enum import Enum
 from dataclasses import dataclass, field
 import numpy as np
 from tqdm import tqdm
+import networkx as nx
 
 class Direction(Enum):
     UP = ('^', 0, -1)
@@ -73,6 +74,9 @@ class Cell:
     
     def __str__(self):
         return str(self.ptype)
+    
+    def to_node(self):
+        return (self.y, self.x)
 
 class Player:
     def __init__(self, pos: Cell, dir: Direction):
@@ -117,6 +121,7 @@ class Map:
             [Cell(x, y, Ptype.EMPTY) for x in range(map_size)]
             for y in range(map_size)
         ], dtype=object)
+        self.doomed = byte_list[falling_bytes:]
         self.corrupted = byte_list[:falling_bytes]
         self.start: Cell = self.cells[0][0]
         self.goal: Cell = self.cells[map_size-1][map_size-1]
@@ -124,13 +129,25 @@ class Map:
         self.player = Player(self.start, Direction.DOWN)
         self.highscores: dict[tuple[Cell, Direction], int] = {}
         self.runs: list[dict[Cell, dict]] = [] # list[player.moves]
+        
+        self.graph = nx.grid_2d_graph(map_size, map_size)
         for x, y in self.corrupted: #or just in byte_list[:falling_bytes] and remove self.corrupted
             self.cells[y][x].ptype = Ptype.WALL
+            self.graph.remove_node((y, x))
+
+    def find_critical_corruption(self) -> tuple[int, int]:
+        """ Drops another byte until the critical path from start to goal is broken. Returns the byte that caused the critical corruption. """
+        #articulation_points = list(nx.articulation_points(self.graph)) # all nodes that would disconnect the graph if removed
+        for byte in tqdm(self.doomed, desc="Finding critical corruption...:", unit="byte"):
+            x, y = byte
+            self.graph.remove_node((y, x))
+            if not nx.has_path(self.graph, self.start.to_node(), self.goal.to_node()):
+                return (x, y)
 
     def do(self, n=1, best_score=0):
         #for _ in tqdm(range(n), desc="Simulating runs...", unit="run"):
             self.player = Player(self.start, Direction.RIGHT)
-            pbar = tqdm(desc=f"Trying to reach the goal... Distance", unit="cells")
+            pbar = tqdm(desc=f"Trying to reach the goal... Distance", unit="cell")
             while self.player.pos.ptype != Ptype.GOAL:
                 final_score = self.move()
                 pbar.n = self.calc_distance(self.goal, self.player.pos)

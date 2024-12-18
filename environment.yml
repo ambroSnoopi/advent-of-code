@@ -13,4 +13,5 @@ dependencies:
       - pytz==2024.2
       - tqdm==4.67.1
       - tzdata==2024.2
+      - networkx==3.4.2
 prefix: ./env
