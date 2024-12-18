@@ -98,7 +98,7 @@ class Player:
             return last_move['score']
         # happy case: derive new score and register move
         last_move = next(reversed(self.moves.values()))
-        cost = 1 if dir==last_move['dir'] else 1001
+        cost = 1 #if dir==last_move['dir'] else 1001
         score = last_move['score'] + cost
         if score <= highscore: #move
             self.moves[target] = {'dir': dir, 'score': score}
@@ -110,25 +110,21 @@ class Player:
         return score
 
 class Map:
-    def __init__(self, map_data: str):
-        lines = map_data.strip().split('\n')
-        self.height = len(lines)
-        self.width = len(lines[0]) if self.height > 0 else 0
-        self.cells = np.empty((self.height, self.width), dtype=Cell)
-        self.start: Cell
-        self.player: Player
+    def __init__(self, byte_list: list[tuple[int, int]], falling_bytes: int, map_size: int):
+        self.height = map_size
+        self.width = map_size
+        self.cells = np.array([
+            [Cell(x, y, Ptype.EMPTY) for x in range(map_size)]
+            for y in range(map_size)
+        ], dtype=object)
+        self.corrupted = byte_list[:falling_bytes]
+        self.start = self.cells[0][0]
+        self.cells[map_size-1][map_size-1].ptype = Ptype.GOAL
+        self.player = Player(self.start, Direction.DOWN)
         self.highscores: dict[tuple[Cell, Direction], int] = {}
         self.runs: list[dict[Cell, dict]] = [] # list[player.moves]
-        # Parse the input and populate the grid 
-        for y, line in enumerate(lines):
-            for x, char in enumerate(line):
-                if char == "S":
-                    c = Cell(x, y, Ptype.EMPTY)
-                    self.start = c
-                else:
-                    ptype = Ptype(char)
-                    c = Cell(x, y, ptype)
-                self.cells[y][x] = c
+        for x, y in self.corrupted: #or just in byte_list[:falling_bytes] and remove self.corrupted
+            self.cells[y][x].ptype = Ptype.WALL
 
     def do(self, n=1, best_score=0):
         for _ in tqdm(range(n), desc="Simulating runs...", unit="run"):
@@ -151,18 +147,25 @@ class Map:
         """ Returns a list of walkable directions sorted by number of visits of the target cell. """
         walkable_targets = []
         for dir in list(Direction):
-            target: Cell = self.cells[pos.y + dir.dy][pos.x + dir.dx]
+            next_y, next_x = pos.y + dir.dy, pos.x + dir.dx
+            if not self.is_on_map(next_x, next_y): continue
+            target: Cell = self.cells[next_y][next_x]
             if target.ptype != Ptype.WALL:
                 walkable_targets.append((target.visits[dir], dir)) 
         ranked_targets = sorted(walkable_targets, key=lambda item: (item[0], item[1].symbol)) # i.e. sorted by visits
         return [dir for visits, dir in ranked_targets]
+    
+    def is_on_map(self, x, y) -> bool:
+        """Check if the position is within the map bounds"""
+        return 0 <= x < self.width and 0 <= y < self.height
     
     def move(self):
         """ Orders the cheapest possible move, i.e. move to the least visited neighbor but prefer moving straight. """
         pos = self.player.pos
 
         ranked_dir = self.get_ranked_dirs(pos)
-        straight_target: Cell = self.cells[pos.y + self.player.dir.dy][pos.x + self.player.dir.dx]
+        straight_y, straight_x = pos.y + self.player.dir.dy, pos.x + self.player.dir.dx
+        straight_target: Cell | None = self.cells[straight_y][straight_x] if self.is_on_map(straight_y, straight_x) else None
         nextbest_target: Cell = self.cells[pos.y + ranked_dir[0].dy][pos.x + ranked_dir[0].dx]
         if (self.player.dir in ranked_dir # i.e. is walkable
             and straight_target.visits[self.player.dir] <= nextbest_target.visits[ranked_dir[0]] #+1000 or smth like that? bc it's 1000 more expensive to turn
@@ -193,7 +196,8 @@ class Map:
         for row in self.cells:
             yield from row
 
-def load_puzzle(map_file: str) -> Map:
-    with open(map_file, 'r') as file:
-        map_data = file.read()
-        return Map(map_data)
+def load_puzzle(input_file: str, falling_bytes: int, map_size: int) -> Map:
+    with open(input_file, 'r') as file:
+        data = file.read()
+        byte_list = [tuple(map(int, line.split(','))) for line in data.splitlines()]
+        return Map(byte_list, falling_bytes, map_size)
