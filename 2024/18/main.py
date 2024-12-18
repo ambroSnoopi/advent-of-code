@@ -17,7 +17,9 @@ print("Quest Best Score:", best_score)
 expected = 294
 assert expected==best_score, f"Test failed!\n  Expected: {expected}\n  Actual: {actual}" 
 
+quest.viz("Before further corruption")
 crit = quest.find_critical_corruption()
 print("The first byte to break the critical path is:", crit)
 expected = (31, 22)
 assert expected==crit, f"Test failed!\n  Expected: {expected}\n  Actual: {actual}" 
+quest.viz("After critical corruption")

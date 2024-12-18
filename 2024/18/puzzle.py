@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import numpy as np
 from tqdm import tqdm
 import networkx as nx
+import matplotlib.pyplot as plt
 
 class Ptype(Enum):
     WALL  = '#'
@@ -63,6 +64,38 @@ class Map:
 
     def checksum(self) -> int:
         return len(self.shortest_path)-1
+    
+    def viz(self, title="Grid Cell Connections"):
+        """ Draws a plot of the graph. """
+        plt.figure(figsize=(15, 15))
+        
+        # Get positions for plotting
+        pos = {(i, j): (j, -i) for i, j in self.graph.nodes()}
+        
+        # Draw the graph
+        nx.draw_networkx_edges(self.graph, pos, edge_color='lightgray', alpha=0.5)
+        
+        # Draw nodes
+        node_colors = ['lightblue' for _ in self.graph.nodes()]
+        
+        # Highlight start and end nodes
+        start_idx = list(self.graph.nodes()).index(self.start.to_node())
+        end_idx = list(self.graph.nodes()).index(self.goal.to_node())
+        node_colors[start_idx] = 'green'
+        node_colors[end_idx] = 'red'
+        
+        nx.draw_networkx_nodes(self.graph, pos, 
+                            node_color=node_colors,
+                            node_size=20)
+        
+        nx.draw_networkx_labels(self.graph, pos, 
+                            {self.start.to_node(): 'Start', self.goal.to_node(): 'End'},
+                            font_size=12)
+        
+        # Plot
+        plt.title(title)
+        plt.axis('equal')
+        plt.show()
 
 def load_puzzle(input_file: str, falling_bytes: int, map_size: int) -> Map:
     with open(input_file, 'r') as file:
