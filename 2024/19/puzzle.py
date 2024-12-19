@@ -94,24 +94,70 @@ class Pattern:
                     break
         
         return dp[n]
+    
+    def find_all_combinations(self, patterns: list['Pattern']) -> list[list['Pattern']]:
+        """
+        Finds all possible combinations of patterns that can create this pattern.
+        
+        Args:
+            patterns: List of patterns that could be used as building blocks
+        
+        Returns:
+            list[list[Pattern]]: List of all valid combinations of patterns that create this pattern
+        """
+        target = str(self)
+        n = len(target)
+        
+        # dp[i] will store list of lists, where each inner list contains the patterns
+        # that can be used to build the substring ending at position i
+        dp = [[] for _ in range(n + 1)]
+        dp[0] = [[]]  # Empty string can be made with empty combination
+        
+        # Convert patterns to dictionary for easier lookup when reconstructing
+        pattern_map = {str(p): p for p in patterns}
+        
+        # For each position in the target string
+        for i in range(1, n + 1):
+            # Try to end a pattern at position i
+            for pattern in patterns:
+                pattern_str = str(pattern)
+                pattern_len = len(pattern_str)
+                
+                # If pattern is too long for current position, skip it
+                if pattern_len > i:
+                    continue
+                
+                # Check if this pattern matches at current position
+                if target[i - pattern_len:i] == pattern_str:
+                    # For each combination that builds the prefix
+                    for prefix_combo in dp[i - pattern_len]:
+                        # Add current pattern to create new combination
+                        dp[i].append(prefix_combo + [pattern])
+        
+        return dp[n]
 
 class Puzzle:
     def __init__(self, towels: list[Pattern], designs: list[Pattern]):
         self.available_towels = towels
         self.desired_designs = designs
         self.possible_designs: list[Pattern] = []
+        self.design_combos: dict[Pattern, list[list[Pattern]]] = {}
 
     def do(self):
+        # Part 1
         for design in tqdm(self.desired_designs, desc=f"Recreating desings using {len(self.available_towels)} available towels.", unit="design"):
             if design.can_be_made_of(self.available_towels):
                 self.possible_designs.append(design)
-    
+        # Part 2
+        for design in tqdm(self.possible_designs, desc="Compiling all possible combinations to recreate designs.", unit="design"):
+            combos = design.find_all_combinations(self.available_towels)
+            self.design_combos[design] = combos
+
     def checksum(self) -> int:
         return len(self.possible_designs)
     
-    def reduce_towels():
-        """ Drops redundant towels, which pattern can be made entirely out of other towels. """
-        pass
+    def check_p2(self) -> int:
+        return sum(len(combos) for combos in self.design_combos.values())
 
 def load_puzzle(input_towels: str, input_designs: str) -> Puzzle:
     """Load patterns from a file containing comma-separated pattern strings"""
