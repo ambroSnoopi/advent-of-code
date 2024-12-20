@@ -1,5 +1,6 @@
 from enum import Enum
 from dataclasses import dataclass
+from multiprocessing import Pool, cpu_count
 from tqdm import tqdm
 import numpy as np
 import networkx as nx
@@ -54,6 +55,9 @@ class Cell:
     
     def to_node(self):
         return (self.y, self.x)
+    
+    def distance(self, other: 'Cell') -> int:
+        return abs(self.x - other.x) + abs(self.y - other.y)
 
 class Map:
     def __init__(self, map_data: str):
@@ -85,6 +89,7 @@ class Map:
         return None
     
     def get_radius(self, c: Cell, r: int) -> list[Cell]:
+        """ Returns a list of cells that are r steps away. """
         return self._get_radius(c.x, c.y, r)
 
     def _get_radius(self, x: int, y: int, r: int) -> list[Cell]:
@@ -126,11 +131,15 @@ class Puzzle:
         self.cheats: set[Cheat] = set()
 
     def find_cheats(self, min_advantage=2, range=2) -> list[Cheat]:
+        """ Finds all possible wallhacks with a specified maximum range which provide a specifid minimum advantage. """
         self.cheats.clear()
-        for pos in tqdm(self.map.track, desc="Finding cheats for every step on the track", unit="step"):
+        num_processes = cpu_count()
+
+        # we can skip the last few 
+        for pos in tqdm(self.map.track[:-range], desc="Finding cheats for every step on the track", unit="step"):
             for target in self.map.get_radius(pos, range):
                 if target in self.map.track and target.ptype == Ptype.EMPTY:
-                    advantage = self.map.track.index(target) - self.map.track.index(pos) - 2
+                    advantage = self.map.track.index(target) - self.map.track.index(pos) - pos.distance(target) # steps saved = advancement on the track - distance walked
                     if advantage >= min_advantage:
                         self.cheats.add(Cheat(pos, target, advantage))
         return self.cheats
