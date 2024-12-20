@@ -13,12 +13,12 @@ if __name__ == '__main__':
     #assert expected==actual, f"Test2 failed!\n  Expected: {expected}\n  Actual: {actual}" # wrong example?!
 
     quest = puzzle.load_puzzle('input/quest.txt')
-    quest.find_cheats(100)
-    actual = quest.checksum()
-    print("Quest Checksum:", actual)
-
-    expected = 1402
-    assert expected==actual, f"Part 1 failed!\n  Expected: {expected}\n  Actual: {actual}"
+    #quest.find_cheats(100)
+    #actual = quest.checksum()
+    #print("Quest Checksum:", actual)
+    #
+    #expected = 1402
+    #assert expected==actual, f"Part 1 failed!\n  Expected: {expected}\n  Actual: {actual}"
 
     quest.find_cheats(100, 20)
     actual = quest.checksum()

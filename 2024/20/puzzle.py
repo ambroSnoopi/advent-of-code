@@ -149,7 +149,7 @@ class Puzzle:
         track_slice = self.map.track[:-min_advantage+1]  # we can skip the last few since they won't be able to achieve the desired advantage even if it cuts right into a straight path to the goal
         
         # Create chunks of roughly equal size
-        chunk_size = len(track_slice) // (num_processes * 8) + 1
+        chunk_size = len(track_slice) // (num_processes * 24) + 1
         chunks = [track_slice[i:i + chunk_size] for i in range(0, len(track_slice), chunk_size)]
         
         # Prepare data for parallel processing
