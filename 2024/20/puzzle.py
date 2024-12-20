@@ -130,18 +130,44 @@ class Puzzle:
         self.map = m
         self.cheats: set[Cheat] = set()
 
-    def find_cheats(self, min_advantage=2, range=2) -> list[Cheat]:
-        """ Finds all possible wallhacks with a specified maximum range which provide a specifid minimum advantage. """
+    def _find_cheats(self, chunk_data: tuple[list[Cell], int, int]) -> set[Cheat]:
+        """Process a chunk of track cells to find cheats."""
+        chunk, min_advantage, radius = chunk_data
+        local_cheats = set()
+        for pos in chunk:
+            for target in self.map.get_radius(pos, radius):
+                if target in self.map.track and target.ptype == Ptype.EMPTY:
+                    advantage = self.map.track.index(target) - self.map.track.index(pos) - pos.distance(target)
+                    if advantage >= min_advantage:
+                        local_cheats.add(Cheat(pos, target, advantage))
+        return local_cheats
+
+    def find_cheats(self, min_advantage=2, radius=2) -> list[Cheat]:
+        """Finds all possible wallhacks with a specified maximum radius which provide a specified minimum advantage."""
         self.cheats.clear()
         num_processes = cpu_count()
-
-        # we can skip the last few 
-        for pos in tqdm(self.map.track[:-range], desc="Finding cheats for every step on the track", unit="step"):
-            for target in self.map.get_radius(pos, range):
-                if target in self.map.track and target.ptype == Ptype.EMPTY:
-                    advantage = self.map.track.index(target) - self.map.track.index(pos) - pos.distance(target) # steps saved = advancement on the track - distance walked
-                    if advantage >= min_advantage:
-                        self.cheats.add(Cheat(pos, target, advantage))
+        track_slice = self.map.track[:-min_advantage+1]  # we can skip the last few since they won't be able to achieve the desired advantage even if it cuts right into a straight path to the goal
+        
+        # Create chunks of roughly equal size
+        chunk_size = len(track_slice) // (num_processes * 8) + 1
+        chunks = [track_slice[i:i + chunk_size] for i in range(0, len(track_slice), chunk_size)]
+        
+        # Prepare data for parallel processing
+        chunk_data = [(chunk, min_advantage, radius) for chunk in chunks]
+        
+        # Process chunks in parallel
+        with Pool(processes=num_processes) as pool:
+            results = list(tqdm(
+                pool.imap(self._find_cheats, chunk_data),
+                total=len(chunks),
+                desc="Finding cheats for a good chunk of the track",
+                unit="chunk"
+            ))
+        
+        # Combine results
+        for result in results:
+            self.cheats.update(result)
+            
         return self.cheats
     
     def do(self):
