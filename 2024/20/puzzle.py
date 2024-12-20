@@ -84,6 +84,20 @@ class Map:
             return self.cells[y][x]
         return None
     
+    def get_radius(self, c: Cell, r: int) -> list[Cell]:
+        return self._get_radius(c.x, c.y, r)
+
+    def _get_radius(self, x: int, y: int, r: int) -> list[Cell]:
+        """ Returns a list of cells that are r steps away. """
+        radius = []
+        for i in range(-r, r+1):
+            for j in range(-r, r+1):
+                if abs(i)+abs(j) <= r:
+                    cell = self.get_cell(x+i, y+j)
+                    if cell:
+                        radius.append(cell)
+        return radius
+    
     def _build_track(self):
         pos = self.start
         pbar = tqdm(desc="Building track...", unit="step")
@@ -103,21 +117,22 @@ class Cheat:
     end: Cell
     advantage: int # number of steps saved
 
+    def __hash__(self):
+        return hash((self.start, self.end))
+
 class Puzzle:
     def __init__(self, m: Map):
         self.map = m
-        self.cheats: list[Cheat] = []
+        self.cheats: set[Cheat] = set()
 
-    def find_cheats(self, min_advantage=2) -> list[Cheat]:
+    def find_cheats(self, min_advantage=2, range=2) -> list[Cheat]:
         self.cheats.clear()
         for pos in tqdm(self.map.track, desc="Finding cheats for every step on the track", unit="step"):
-            for dir in list(Direction):
-                # there no corners that could be cut so we just skip in the same dir twice
-                target: Cell | None = self.map.get_cell(pos.x + dir.dx*2, pos.y + dir.dy*2)
-                if target and target.ptype == Ptype.EMPTY:
+            for target in self.map.get_radius(pos, range):
+                if target in self.map.track and target.ptype == Ptype.EMPTY:
                     advantage = self.map.track.index(target) - self.map.track.index(pos) - 2
                     if advantage >= min_advantage:
-                        self.cheats.append(Cheat(pos, target, advantage))
+                        self.cheats.add(Cheat(pos, target, advantage))
         return self.cheats
     
     def do(self):

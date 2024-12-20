@@ -5,27 +5,20 @@ test.find_cheats(40)
 expected = 2
 actual = test.checksum()
 assert expected==actual, f"Test failed!\n  Expected: {expected}\n  Actual: {actual}"
-"""
-test2 = puzzle.load_puzzle('input/test.txt')
-test2.do()
-expected = 0123
-actual = test2.checksum()
+
+test.find_cheats(74, 20)
+expected = 7
+actual = test.checksum()
 assert expected==actual, f"Test2 failed!\n  Expected: {expected}\n  Actual: {actual}"
 
-#or
-
-expected = 01234
-actual = test.check_p2()
-assert expected==actual, f"Test2 failed!\n  Expected: {expected}\n  Actual: {actual}"
-"""
 quest = puzzle.load_puzzle('input/quest.txt')
 quest.find_cheats(100)
 actual = quest.checksum()
 print("Quest Checksum:", actual)
-"""
-expected = 0123
+
+expected = 1402
 assert expected==actual, f"Part 1 failed!\n  Expected: {expected}\n  Actual: {actual}"
 
-p2 = quest.check_p2()
-print("Quest Checksum Part 2:", p2)
-"""
+quest.find_cheats(100, 20)
+actual = quest.checksum()
+print("Quest Checksum Part 2:", actual)
