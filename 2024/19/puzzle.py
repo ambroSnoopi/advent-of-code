@@ -135,6 +135,43 @@ class Pattern:
                         dp[i].append(prefix_combo + [pattern])
         
         return dp[n]
+    
+    def get_all_ways_to_make(self, patterns: list['Pattern']) -> list[list['Pattern']]:
+        """
+        Finds all possible combinations of patterns that can create this pattern using backtracking.
+        
+        Args:
+            patterns: List of patterns that could be used as building blocks
+        
+        Returns:
+            list[list[Pattern]]: List of valid combinations, where each combination is a list of patterns
+        """
+        target = str(self)
+        results = []
+        current_combination = []
+        
+        def backtrack(remaining_target: str):
+            # If nothing left to match, we found a valid combination
+            if not remaining_target:
+                results.append(current_combination.copy())
+                return
+                
+            # Try each pattern at the current position
+            for pattern in patterns:
+                pattern_str = str(pattern)
+                
+                # If pattern matches at start of remaining target
+                if remaining_target.startswith(pattern_str):
+                    # Add this pattern to our current combination
+                    current_combination.append(pattern)
+                    # Recursively try to match the rest
+                    backtrack(remaining_target[len(pattern_str):])
+                    # Remove the pattern to try other possibilities
+                    current_combination.pop()
+        
+        # Start the backtracking process
+        backtrack(target)
+        return results
 
 class Puzzle:
     def __init__(self, towels: list[Pattern], designs: list[Pattern]):
@@ -142,16 +179,79 @@ class Puzzle:
         self.desired_designs = designs
         self.possible_designs: list[Pattern] = []
         self.design_combos: dict[Pattern, list[list[Pattern]]] = {}
+        
+        self.building_towels: list[Pattern] = []
+        self.redundant_towels: list[Pattern] = []
+        self.redundant_to_building: dict[Pattern: list[list[Pattern]]] = {} #redundant_towel -> list[*building_towels]
+        self.building_to_redundant: dict[tuple[Pattern]: Pattern] = {} #tuple[building_towels] -> redundant_towel
 
+    def reduce_towels(self):
+        """
+        Reduces the set of towels by removing those that can be made from combinations of others.
+        i.e. splits the "available_towels" into "building_towels" which can be used to form "redundant_towels"
+        """
+        for towel in tqdm(self.available_towels, desc="Reducing available towels", unit="towel"):
+            candidates = towel.find_composites(self.available_towels)
+            candidates.remove(towel) # ignore self
+            if towel.can_be_made_of(candidates):
+                self.redundant_towels.append(towel)
+            else:
+                self.building_towels.append(towel)
+
+    def map_reduced_towels(self):
+        """ Creates a mapping between building_towels and redundant_towels. """
+        for towel in tqdm(self.redundant_towels, desc="Mapping reduced towels", unit="towel"):
+            combos = towel.get_all_ways_to_make(self.building_towels)
+            self.redundant_to_building[towel] = combos
+            for possibility in combos:
+                self.building_to_redundant[tuple(possibility)] = towel
+
+    def expand_towels(self, seq: list[Pattern]) -> list[list[Pattern]]:
+        """ Processes a combo of towels and replaces any subsequences of building_towels with the respective redundant_towel. Returns all additional combinations. """
+        
+        results: list[list[Pattern]] = []
+        #subseq: tuple[Pattern], new_value: Pattern
+        for subseq, new_value in self.building_to_redundant.items():
+            subseq = list(subseq)
+            subseq_len = len(subseq)
+            
+            # Recursive function to generate combinations
+            def generate_combinations(current_seq, start_index):
+                # Search for the subsequence starting from `start_index`
+                for i in range(start_index, len(current_seq) - subseq_len + 1):
+                    if current_seq[i:i + subseq_len] == subseq:
+                        # Create a new sequence with the substitution
+                        new_seq = current_seq[:i] + [new_value] + current_seq[i + subseq_len:]
+                        # Add this new sequence to the results
+                        if new_seq not in results: results.append(new_seq)
+                        # Recurse to find further substitutions in the new sequence
+                        generate_combinations(new_seq, i + 1)
+
+            # Start generating combinations from the original sequence
+            generate_combinations(seq, 0)
+        return results
+    
     def do(self):
         # Part 1
-        for design in tqdm(self.desired_designs, desc=f"Recreating desings using {len(self.available_towels)} available towels.", unit="design"):
+        for design in tqdm(self.desired_designs, desc=f"Recreating desings using {len(self.available_towels)} available towels", unit="design"):
             if design.can_be_made_of(self.available_towels):
                 self.possible_designs.append(design)
         # Part 2
-        for design in tqdm(self.possible_designs, desc="Compiling all possible combinations to recreate designs.", unit="design"):
-            combos = design.find_all_combinations(self.available_towels)
-            self.design_combos[design] = combos
+        candidates: list[Pattern] = []
+        self.reduce_towels()
+        self.map_reduced_towels()
+        with tqdm(self.possible_designs, desc=f"Compiling all possible combinations to recreate designs using {len(candidates)} applicable towels", unit="design") as pbar:
+            for design in pbar:
+                candidates.extend(design.find_composites(self.building_towels))
+                pbar.set_description(f"Compiling all possible combinations to recreate designs using {len(candidates)} applicable towels")
+                combos = design.get_all_ways_to_make(candidates)
+                for possibility in combos:
+                    extras = self.expand_towels(possibility)
+                    # combos.extend(extras) #combos.extend(x for x in extras if x not in combos)
+                    for extra in extras:
+                        if extra not in combos: combos.append(extra)
+                self.design_combos[design] = combos
+                candidates.clear()
 
     def checksum(self) -> int:
         return len(self.possible_designs)
