@@ -1,8 +1,8 @@
 import puzzle
 
 test = puzzle.load_puzzle('input/test.txt')
-test.do()
-expected = 0123
+test.find_cheats(40)
+expected = 2
 actual = test.checksum()
 assert expected==actual, f"Test failed!\n  Expected: {expected}\n  Actual: {actual}"
 """
@@ -19,7 +19,7 @@ actual = test.check_p2()
 assert expected==actual, f"Test2 failed!\n  Expected: {expected}\n  Actual: {actual}"
 """
 quest = puzzle.load_puzzle('input/quest.txt')
-quest.do()
+quest.find_cheats(100)
 actual = quest.checksum()
 print("Quest Checksum:", actual)
 """
