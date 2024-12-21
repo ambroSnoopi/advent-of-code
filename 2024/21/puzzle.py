@@ -2,6 +2,7 @@ from enum import Enum
 from dataclasses import dataclass
 from tqdm import tqdm
 import networkx as nx
+from itertools import product
 
 class Direction(Enum):
     UP = ('^', 0, -1)
@@ -24,6 +25,13 @@ class Direction(Enum):
     def dy(self) -> int:
         return self.value[2]
     
+    @classmethod
+    def from_symbol(cls, symbol: str) -> 'Direction':
+        for dir in cls:
+            if dir.symbol == symbol:
+                return dir
+        raise ValueError(f"No Direction matches symbol: {symbol}")
+
     @classmethod
     def from_delta(cls, dx: int, dy: int) -> 'Direction':
         for dir in cls:
@@ -79,49 +87,58 @@ class Keypad:
     
     def get_dpad_movement_cost(self, dir1: Direction | None, dir2: Direction | None) -> float:
         """Calculate cost of moving between two directions on the D-pad"""
-        if dir1 == dir2:
-            return 0.0
-        
         if not self.dpad:
-            return 1.0
-        
+            return 1
+        if dir1 == dir2:
+            return 0
         # Find buttons corresponding to these directions
         btn1 = self.dpad.button_from_char(dir1.symbol) if dir1 else self.dpad.button_from_char('A')
         btn2 = self.dpad.button_from_char(dir2.symbol) if dir2 else self.dpad.button_from_char('A')
         
         # Calculate actual distance on D-pad
-        return btn1.distance(btn2) * 1.0
+        return btn1.distance(btn2)
 
-    def shortest_path_for_pin(self, pin: str) -> list[list[Button]]:
-        """ Gives the shortest path for a pin (series of Buttons as str), grouped by Button in separat lists. """
-        path: list[tuple[Button]] = []
+    def shortest_paths_for_pin(self, pin: str) -> list[list[list[Button]]]:
+        """ Gives all options of shortest path for a pin (series of Buttons as str), grouped by Button in separat lists. 
+        Returns: Nested list of lists of lists of Button objects
+        1. Level: Equally short options of the entire path
+        2. Level: Path for the entire Pin
+        3. Level: Path from one Button to the next
+        """
+        options: list[list[list[Button]]] = []
         for start, goal in zip(pin, pin[1:]):
             start = self.button_from_char(start)
             goal = self.button_from_char(goal)
-            
-            prev_dir = [None]  # Use list to allow modification in nested function
-            
-            def weight_func(u, v, d):
-                current_direction = Direction.from_buttons(u, v)
-                weight = self.get_dpad_movement_cost(prev_dir[0], current_direction)
-                prev_dir[0] = current_direction
-                return weight
-            
-            path_for_button = nx.shortest_path(self.graph, start, goal, 
-                                             weight=weight_func)
-            path.append(path_for_button)
-        return path
+            paths = list(nx.all_shortest_paths(self.graph, start, goal))
+            options.append(paths)
+        options = list(product(*options))
+        return options
     
     def directions_for_pin(self, pin: str) -> str:
         """ Gives the directions for a pin (series of Buttons as str), separated by "A" for Button-presses. """
-        path = self.shortest_path_for_pin(pin)
-        directions = ""
-        for button_path in path:
-            for start, goal in zip(button_path, button_path[1:]):
-                dx, dy = start.delta(goal)
-                directions += (Direction.from_delta(dx, dy).symbol)
-            directions += "A"
-        return directions
+        paths = self.shortest_paths_for_pin(pin)
+        options = []
+        for option in paths:
+            directions = ""
+            for button_path in option:
+                for start, goal in zip(button_path, button_path[1:]):
+                    dx, dy = start.delta(goal)
+                    directions += (Direction.from_delta(dx, dy).symbol)
+                directions += "A"
+            options.append(directions)
+        return self.fastest_direction(options)
+    
+    def cost_of_directions(self, directions: str) -> int:
+        """ Returns the cost of a series of directions. """
+        cost = 0
+        for start, goal in zip(directions, directions[1:]):
+            cost += self.dpad.button_from_char(start).distance(self.dpad.button_from_char(goal))
+        return cost
+    
+    def fastest_direction(self, options: list[str]) -> str:
+        """ Returns the fastest option of a list of directions. """
+        costs = [self.cost_of_directions(option) for option in options]
+        return options[costs.index(min(costs))]
 
 class Puzzle:
     def __init__(self, data):
@@ -157,7 +174,7 @@ class Puzzle:
         return int(num_part)
     
     def do(self):
-        for pin in self.pincodes:
+        for pin in tqdm(self.pincodes, desc="Deriving Instructions for Pins..."):
             dir_t1 = self.numpad.directions_for_pin("A"+pin)
             dir_t2 = self.dirpad_t1.directions_for_pin("A"+dir_t1)
             dir_t3 = self.dirpad_t2.directions_for_pin("A"+dir_t2)
