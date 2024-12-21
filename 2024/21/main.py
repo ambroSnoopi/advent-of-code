@@ -2,7 +2,7 @@ import puzzle
 
 test = puzzle.load_puzzle('input/test.txt')
 test.do()
-expected = 0123
+expected = 126384
 actual = test.checksum()
 assert expected==actual, f"Test failed!\n  Expected: {expected}\n  Actual: {actual}"
 """
