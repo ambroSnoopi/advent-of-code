@@ -57,7 +57,7 @@ class Button:
     def delta(self, other: 'Button') -> tuple[int, int]:
         return (other.x - self.x, other.y - self.y)
 
-class Keybad:
+class Keypad:
     def __init__(self, buttons: list[Button]):
         self.buttons = buttons
 
@@ -70,7 +70,7 @@ class Keybad:
         #self.graph.remove_node(self.button_from_char(' ')) # remove the empty button
 
     def button_from_char(self, char: str) -> Button:
-        #TODO: raise ValueError if char not in buttons
+        #TODO: raise ValueError instead if char not in buttons
         return next(b for b in self.buttons if b.char == char)
     
     def shortest_path_for_pin(self, pin: str) -> list[list[Button]]:
@@ -100,17 +100,17 @@ class Keybad:
 class Puzzle:
     def __init__(self, data):
         self.pincodes: list[str] = data
-        self.numbad = Keybad([  Button(0, 0, '7'), Button(1, 0, '8'), Button(2, 0, '9'),
+        self.numpad = Keypad([  Button(0, 0, '7'), Button(1, 0, '8'), Button(2, 0, '9'),
                                 Button(0, 1, '4'), Button(1, 1, '5'), Button(2, 1, '6'),
                                 Button(0, 2, '1'), Button(1, 2, '2'), Button(2, 2, '3'),
-                                #Button(0, 3, ' '), Button(1, 3, '0'), Button(2, 3, 'A')])
                                                    Button(1, 3, '0'), Button(2, 3, 'A')])
+                               #Button(0, 3, ' '), Button(1, 3, '0'), Button(2, 3, 'A')])
         
-        self.dirpad_t1=Keybad([#Button(0, 0, ' '), Button(1, 0, '^'), Button(2, 0, 'A'),
+        self.dirpad_t1=Keypad([#Button(0, 0, ' '), Button(1, 0, '^'), Button(2, 0, 'A'),
                                                    Button(1, 0, '^'), Button(2, 0, 'A'),
                                 Button(0, 1, '<'), Button(1, 1, 'v'), Button(2, 1, '>')])
         
-        self.dirpad_t2=Keybad([ Button(0, 0, ' '), Button(1, 0, '^'), Button(2, 0, 'A'),
+        self.dirpad_t2=Keypad([                    Button(1, 0, '^'), Button(2, 0, 'A'),
                                 Button(0, 1, '<'), Button(1, 1, 'v'), Button(2, 1, '>')])
         
         self.instructions: list[str] = []
@@ -125,9 +125,9 @@ class Puzzle:
     
     def do(self):
         for pin in self.pincodes:
-            dir_t1 = self.numbad.directions_for_pin("A"+pin)
+            dir_t1 = self.numpad.directions_for_pin("A"+pin)
             dir_t2 = self.dirpad_t1.directions_for_pin("A"+dir_t1)
-            dir_t3 = self.dirpad_t2.directions_for_pin(dir_t2)
+            dir_t3 = self.dirpad_t2.directions_for_pin("A"+dir_t2)
             self.instructions.append(dir_t3)
 
     def checksum(self):
