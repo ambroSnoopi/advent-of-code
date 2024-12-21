@@ -117,7 +117,7 @@ class Keypad:
     def directions_for_pin(self, pin: str) -> str:
         """ Gives the directions for a pin (series of Buttons as str), separated by "A" for Button-presses. """
         paths = self.shortest_paths_for_pin(pin)
-        options = []
+        options = set()
         for option in paths:
             directions = ""
             for button_path in option:
@@ -125,31 +125,34 @@ class Keypad:
                     dx, dy = start.delta(goal)
                     directions += (Direction.from_delta(dx, dy).symbol)
                 directions += "A"
-            options.append(directions)
-        return self.fastest_direction(options)
+            options.add(directions)
+        return self.fastest_option(options)
     
     def cost_of_directions(self, directions: str) -> int:
         """ Returns the cost of a series of directions. """
         cost = 0
-        for start, goal in zip(directions, directions[1:]):
+        if not self.dpad:
+            return len(directions)
+        for start, goal in zip('A'+directions, directions):
             cost += self.dpad.button_from_char(start).distance(self.dpad.button_from_char(goal))
+        #for start, goal in zip(directions, directions[1:]):
+        #    cost += self.dpad.button_from_char(start).distance(self.dpad.button_from_char(goal))
         return cost
     
-    def fastest_direction(self, options: list[str]) -> str:
+    def fastest_option(self, options: set[str]) -> str:
         """ Returns the fastest option of a list of directions. """
-        costs = [self.cost_of_directions(option) for option in options]
-        return options[costs.index(min(costs))]
+        return min(options, key=lambda x: self.cost_of_directions(x))
 
 class Puzzle:
     def __init__(self, data):
         self.pincodes: list[str] = data
 
-        self.dirpad_base=Keypad([                  Button(1, 0, '^'), Button(2, 0, 'A'),
-                                Button(0, 1, '<'), Button(1, 1, 'v'), Button(2, 1, '>')])
+        #self.dirpad_base=Keypad([                  Button(1, 0, '^'), Button(2, 0, 'A'),
+        #                        Button(0, 1, '<'), Button(1, 1, 'v'), Button(2, 1, '>')])
         
         self.dirpad_t2 = Keypad([                  Button(1, 0, '^'), Button(2, 0, 'A'),
                                 Button(0, 1, '<'), Button(1, 1, 'v'), Button(2, 1, '>')],
-                                self.dirpad_base)
+                                None)
         
         self.dirpad_t1 = Keypad([#Button(0, 0, ' '), Button(1, 0, '^'), Button(2, 0, 'A'),
                                                    Button(1, 0, '^'), Button(2, 0, 'A'),
@@ -174,7 +177,7 @@ class Puzzle:
         return int(num_part)
     
     def do(self):
-        for pin in tqdm(self.pincodes, desc="Deriving Instructions for Pins..."):
+        for pin in tqdm(self.pincodes, desc="Deriving Instructions for Pins...", unit="pin"):
             dir_t1 = self.numpad.directions_for_pin("A"+pin)
             dir_t2 = self.dirpad_t1.directions_for_pin("A"+dir_t1)
             dir_t3 = self.dirpad_t2.directions_for_pin("A"+dir_t2)
