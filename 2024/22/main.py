@@ -38,4 +38,4 @@ expected = 14180628689
 assert expected==actual, f"Part 1 failed!\n  Expected: {expected}\n  Actual: {actual}"
 
 p2 = quest.check_p2()
-print("Quest Checksum Part 2:", p2)
+print("Quest Checksum Part 2:", p2) #1690

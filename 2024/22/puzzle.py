@@ -44,13 +44,17 @@ class Puzzle:
             self.sequences[secret] = sequences
     
     def calc_top_change_seq(self):
+        #TODO: could store as list[tuple[base, secret, price, change, str(change_seq)]] during gen_sequences to avoid costly pd.concat
+        # but it still runs in under 1min, so, can't be bothered...
         df_master = pd.DataFrame(columns=["secret", "price", "change", "change_seq", "base"])
-        for base, seq in self.sequences.items():
+        for base, seq in tqdm(self.sequences.items(), desc="Merging results for best price analysis", unit="monkey"):
             df = pd.DataFrame(seq, columns=["secret", "price", "change", "change_seq"])
             df["base"] = base
             df_master = pd.concat([df_master, df])
         df_master['change_str'] = df_master['change_seq'].astype(str)
-        self.df_top_seq = df_master[['change_str', 'price']].groupby(['change_str']).sum().sort_values(by='price', ascending=False)
+        self.df_top_seq = df_master[['change_str', 'base', 'price']].groupby(
+            ['change_str', 'base']).first().groupby(
+            ['change_str']).sum().sort_values(by='price', ascending=False)
     
     def do(self):
         self.gen_sequences(2000)
