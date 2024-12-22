@@ -14,7 +14,7 @@ expected = [
    , 7753432
    , 5908254
 ]
-actual = test0.sequences[123][:10]
+actual = [seq[0] for seq in test0.sequences[123][:10]]
 assert expected==actual, f"Test2 failed!\n  Expected: {expected}\n  Actual: {actual}"
 
 
@@ -40,10 +40,10 @@ quest = puzzle.load_puzzle('input/quest.txt')
 quest.do()
 actual = quest.checksum()
 print("Quest Checksum:", actual)
-"""
-expected = 0123
-assert expected==actual, f"Part 1 failed!\n  Expected: {expected}\n  Actual: {actual}"
 
+expected = 14180628689
+assert expected==actual, f"Part 1 failed!\n  Expected: {expected}\n  Actual: {actual}"
+"""
 p2 = quest.check_p2()
 print("Quest Checksum Part 2:", p2)
 """

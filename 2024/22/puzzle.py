@@ -3,7 +3,7 @@ from tqdm import tqdm
 class Puzzle:
     def __init__(self, secrets: list[int]):
         self.secrets = secrets
-        self.sequences: dict[int, list[int]] = {} # secret -> sequence
+        self.sequences: dict[int, list[tuple[int,int,int]]] = {} # secret -> sequences(secret, price, change)
 
     @staticmethod
     def mix_n_prune(secret: int, interim: int) -> int:
@@ -20,19 +20,30 @@ class Puzzle:
         secret = self.mix_n_prune(secret, interim)
         return secret
 
-    def do(self):
+    @staticmethod
+    def bananas_from_secret(secret: int):
+        return secret % 10
+    
+    def proc_sequences(self, n=2000):
         for secret in tqdm(self.secrets, desc="Computing sequences", unit="secret"):
-            sequences = []
+            sequences: list[tuple[int,int,int]] = [] # (secret, price, change)
             seq = secret
-            for _ in range(2000):
+            for _ in range(n):
+                old_bananas = self.bananas_from_secret(seq)
                 seq = self.next_secret(seq)
-                sequences.append(seq)
+                new_bananas = self.bananas_from_secret(seq)
+                change = new_bananas - old_bananas
+                sequences.append((seq, new_bananas, change))
+
             self.sequences[secret] = sequences
+    
+    def do(self):
+        self.proc_sequences(2000)
 
     def checksum(self):
         total_sum = 0
         for sequence in self.sequences.values():
-            total_sum += sequence[-1]
+            total_sum += sequence[-1][0]
         return total_sum
     
     def check_p2(self):
