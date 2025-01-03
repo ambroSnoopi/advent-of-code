@@ -38,7 +38,7 @@ class Puzzle:
         return len(self.matches)
     
     def check_p2(self):
-        top = self.matches[-1] #or self.lanparties[-1]?
+        top = self.lanparties[-1]
         top.sort()
         return ','.join(top)
 
